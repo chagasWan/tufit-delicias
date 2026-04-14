@@ -11,6 +11,7 @@ import AdminLayout from './pages/admin/AdminLayout'
 import AdminPedidos from './pages/admin/AdminPedidos'
 import AdminProdutos from './pages/admin/AdminProdutos'
 import AdminReceitas from './pages/admin/AdminReceitas'
+import AdminDashboard from './pages/admin/AdminDashboard'
 
 function App() {
   return (
@@ -25,7 +26,7 @@ function App() {
           <Route path="/admin/login" element={<AdminLogin />} />
           <Route element={<AdminProtegido />}>
             <Route element={<AdminLayout />}>
-              <Route path="/admin" element={<div style={{padding:40,textAlign:'center',color:'#9ca3af'}}>Dashboard em breve 🍰</div>} />
+              <Route path="/admin" element={<AdminDashboard />} />
               <Route path="/admin/pedidos" element={<AdminPedidos />} />
               <Route path="/admin/produtos" element={<AdminProdutos />} />
               <Route path="/admin/receitas" element={<AdminReceitas />} />
