@@ -12,6 +12,8 @@ import AdminPedidos from './pages/admin/AdminPedidos'
 import AdminProdutos from './pages/admin/AdminProdutos'
 import AdminReceitas from './pages/admin/AdminReceitas'
 import AdminDashboard from './pages/admin/AdminDashboard'
+import AdminClientes from './pages/admin/AdminClientes'
+import AdminConfiguracoes from './pages/admin/AdminConfiguracoes'
 
 function App() {
   return (
@@ -30,8 +32,8 @@ function App() {
               <Route path="/admin/pedidos" element={<AdminPedidos />} />
               <Route path="/admin/produtos" element={<AdminProdutos />} />
               <Route path="/admin/receitas" element={<AdminReceitas />} />
-              <Route path="/admin/clientes" element={<div style={{padding:40,textAlign:'center',color:'#9ca3af'}}>Clientes em breve 🍰</div>} />
-              <Route path="/admin/configuracoes" element={<div style={{padding:40,textAlign:'center',color:'#9ca3af'}}>Configurações em breve 🍰</div>} />
+              <Route path="/admin/clientes" element={<AdminClientes />} />
+              <Route path="/admin/configuracoes" element={<AdminConfiguracoes />} />
             </Route>
           </Route>
         </Routes>
