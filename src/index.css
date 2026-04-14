@@ -1,0 +1,24 @@
+@import "tailwindcss";
+
+:root {
+  --tufit-rosa: #D4537E;
+  --tufit-rosa-escuro: #993556;
+  --tufit-rosa-claro: #FBEAF0;
+  --tufit-bege: #FDF8F0;
+}
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  font-family: 'Inter', sans-serif;
+  background-color: var(--tufit-bege);
+  color: #2C2C2A;
+}
+
+html {
+  scroll-behavior: smooth;
+}
