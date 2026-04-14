@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { ShoppingBag, Heart, Search, Filter, ChevronDown, MessageCircle, ArrowLeft } from 'lucide-react'
+import { useCarrinho } from '../contexts/CarrinhoContext'
 
 const iconeInstagram = (
   <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -106,6 +107,7 @@ export default function Cardapio() {
   const [busca, setBusca] = useState('')
   const [loading, setLoading] = useState(true)
   const navigate = useNavigate()
+  const { adicionarItem } = useCarrinho()
   const whatsapp = '5562999049716'
 
   useEffect(() => {
@@ -134,7 +136,7 @@ export default function Cardapio() {
   })
 
   function handlePedir(produto) {
-    navigate('/pedido/' + produto.id)
+    adicionarItem(produto)
   }
 
   return (
