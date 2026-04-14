@@ -1,17 +1,9 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '../../lib/supabase'
-import { Plus, Edit2, Trash2, Eye, EyeOff, Star, Package, X, Upload, Clock } from 'lucide-react'
+import { Plus, Edit2, Trash2, Eye, EyeOff, Star, X, Upload, Clock } from 'lucide-react'
 import toast from 'react-hot-toast'
 
-const CATEGORIAS_PADRAO = [
-  { id: 'docinhos', nome: 'Docinhos' },
-  { id: 'bolos', nome: 'Bolos' },
-  { id: 'tortas', nome: 'Tortas' },
-  { id: 'salgados', nome: 'Salgados' },
-  { id: 'bebidas', nome: 'Bebidas' },
-]
-
-function ModalProduto({ produto, onFechar, onSalvar }) {
+function ModalProduto({ produto, categorias, onFechar, onSalvar }) {
   const [form, setForm] = useState({
     nome: produto?.nome || '',
     descricao: produto?.descricao || '',
@@ -36,11 +28,10 @@ function ModalProduto({ produto, onFechar, onSalvar }) {
     const file = e.target.files[0]
     if (!file) return
     if (file.size > 5 * 1024 * 1024) return toast.error('Foto muito grande. Máximo 5MB.')
-
     setUploadando(true)
     const ext = file.name.split('.').pop()
     const nome = `produtos/${Date.now()}.${ext}`
-    const { data, error } = await supabase.storage.from('fotos').upload(nome, file, { upsert: true })
+    const { error } = await supabase.storage.from('fotos').upload(nome, file, { upsert: true })
     if (error) {
       toast.error('Erro ao enviar foto')
     } else {
@@ -54,7 +45,6 @@ function ModalProduto({ produto, onFechar, onSalvar }) {
   async function handleSalvar() {
     if (!form.nome.trim()) return toast.error('Digite o nome do produto')
     if (!form.preco || isNaN(form.preco)) return toast.error('Digite um preço válido')
-
     setSalvando(true)
     const dados = {
       nome: form.nome.trim(),
@@ -69,7 +59,6 @@ function ModalProduto({ produto, onFechar, onSalvar }) {
       foto_url: form.foto_url || null,
       capacidade_dia: parseInt(form.capacidade_dia) || 10,
     }
-
     let error
     if (produto?.id) {
       const res = await supabase.from('produtos').update(dados).eq('id', produto.id)
@@ -78,7 +67,6 @@ function ModalProduto({ produto, onFechar, onSalvar }) {
       const res = await supabase.from('produtos').insert(dados)
       error = res.error
     }
-
     if (error) {
       toast.error('Erro ao salvar produto')
       console.error(error)
@@ -104,7 +92,6 @@ function ModalProduto({ produto, onFechar, onSalvar }) {
         </div>
 
         <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
             <div style={{ gridColumn: '1 / -1' }}>
               <label style={labelStyle}>Nome do produto *</label>
@@ -122,7 +109,7 @@ function ModalProduto({ produto, onFechar, onSalvar }) {
               <label style={labelStyle}>Categoria</label>
               <select style={inputStyle} value={form.categoria_id} onChange={e => atualizar('categoria_id', e.target.value)}>
                 <option value="">Selecione...</option>
-                {CATEGORIAS_PADRAO.map(c => <option key={c.id} value={c.id}>{c.nome}</option>)}
+                {categorias.map(c => <option key={c.id} value={c.id}>{c.nome}</option>)}
               </select>
             </div>
             <div>
@@ -164,7 +151,7 @@ function ModalProduto({ produto, onFechar, onSalvar }) {
           <div style={{ display: 'flex', gap: 20 }}>
             <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', fontSize: 14, color: '#2C2C2A' }}>
               <input type="checkbox" checked={form.destaque} onChange={e => atualizar('destaque', e.target.checked)} />
-              ⭐ Produto em destaque
+              Produto em destaque
             </label>
             <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', fontSize: 14, color: '#2C2C2A' }}>
               <input type="checkbox" checked={form.ativo} onChange={e => atualizar('ativo', e.target.checked)} />
@@ -192,17 +179,26 @@ function ModalProduto({ produto, onFechar, onSalvar }) {
 
 export default function AdminProdutos() {
   const [produtos, setProdutos] = useState([])
+  const [categorias, setCategorias] = useState([])
   const [loading, setLoading] = useState(true)
   const [modalAberto, setModalAberto] = useState(false)
   const [produtoEditando, setProdutoEditando] = useState(null)
   const [filtro, setFiltro] = useState('todos')
 
-  useEffect(() => { buscarProdutos() }, [])
+  useEffect(() => {
+    buscarProdutos()
+    buscarCategorias()
+  }, [])
 
   async function buscarProdutos() {
     const { data } = await supabase.from('produtos').select('*').order('created_at', { ascending: false })
     setProdutos(data || [])
     setLoading(false)
+  }
+
+  async function buscarCategorias() {
+    const { data } = await supabase.from('categorias').select('*').eq('ativo', true).order('ordem')
+    setCategorias(data || [])
   }
 
   async function toggleAtivo(produto) {
@@ -246,10 +242,19 @@ export default function AdminProdutos() {
     return Math.floor(h / 24) + 'd'
   }
 
+  function nomeDaCategoria(id) {
+    return categorias.find(c => c.id === id)?.nome || ''
+  }
+
   return (
     <div style={{ fontFamily: 'Inter, sans-serif' }}>
       {modalAberto && (
-        <ModalProduto produto={produtoEditando} onFechar={fecharModal} onSalvar={aoSalvar} />
+        <ModalProduto
+          produto={produtoEditando}
+          categorias={categorias}
+          onFechar={fecharModal}
+          onSalvar={aoSalvar}
+        />
       )}
 
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 }}>
@@ -309,7 +314,7 @@ export default function AdminProdutos() {
               <div style={{ flex: 1, minWidth: 0 }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 3 }}>
                   <span style={{ fontWeight: 700, color: '#2C2C2A', fontSize: 15 }}>{p.nome}</span>
-                  {p.destaque && <span style={{ background: '#fffbeb', color: '#d97706', fontSize: 11, padding: '2px 8px', borderRadius: 10, fontWeight: 600 }}>⭐ Destaque</span>}
+                  {p.destaque && <span style={{ background: '#fffbeb', color: '#d97706', fontSize: 11, padding: '2px 8px', borderRadius: 10, fontWeight: 600 }}>Destaque</span>}
                   {!p.ativo && <span style={{ background: '#fef2f2', color: '#ef4444', fontSize: 11, padding: '2px 8px', borderRadius: 10, fontWeight: 600 }}>Inativo</span>}
                 </div>
                 <div style={{ display: 'flex', gap: 14, flexWrap: 'wrap' }}>
@@ -317,7 +322,9 @@ export default function AdminProdutos() {
                   <span style={{ fontSize: 13, color: '#9ca3af', display: 'flex', alignItems: 'center', gap: 3 }}>
                     <Clock size={12} /> {formatarPrazo(p.prazo_minimo_horas)} antecedência
                   </span>
-                  {p.categoria_id && <span style={{ fontSize: 13, color: '#9ca3af' }}>{p.categoria_id}</span>}
+                  {p.categoria_id && (
+                    <span style={{ fontSize: 13, color: '#9ca3af' }}>{nomeDaCategoria(p.categoria_id)}</span>
+                  )}
                 </div>
               </div>
 

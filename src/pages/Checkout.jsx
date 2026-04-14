@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useCarrinho } from '../contexts/CarrinhoContext'
 import { supabase } from '../lib/supabase'
@@ -22,22 +22,45 @@ function formatarData(date) {
   return date.toISOString().split('T')[0]
 }
 
-function gerarDiasCalendario(dataMinima) {
+function gerarDiasCalendario(dataMinima, horarios) {
   const dias = []
   const hoje = new Date()
   hoje.setHours(0,0,0,0)
   const min = new Date(dataMinima)
-  min.setHours(0,0,0,0)
+
   for (let i = 0; i < 30; i++) {
     const d = new Date(hoje)
     d.setDate(hoje.getDate() + i)
+
+    let disponivel = false
+    if (d > min) {
+      disponivel = true
+    } else if (formatarData(d) === formatarData(min)) {
+      const horariosDisponiveis = horarios.filter(h => {
+        const [hora, min2] = h.split(':').map(Number)
+        const dataHora = new Date(d)
+        dataHora.setHours(hora, min2, 0, 0)
+        return dataHora > min
+      })
+      disponivel = horariosDisponiveis.length > 0
+    }
+
     dias.push({
       data: d,
-      disponivel: d >= min,
+      disponivel,
       diaSemana: d.toLocaleDateString('pt-BR', { weekday: 'short' }),
     })
   }
   return dias
+}
+
+function horariosDisponiveisDoDia(data, dataMinima, horarios) {
+  return horarios.filter(h => {
+    const [hora, min] = h.split(':').map(Number)
+    const dataHora = new Date(data)
+    dataHora.setHours(hora, min, 0, 0)
+    return dataHora > dataMinima
+  })
 }
 
 function formatarTelefone(valor) {
@@ -60,12 +83,37 @@ export default function Checkout() {
   const [telefone, setTelefone] = useState('')
   const [observacoes, setObservacoes] = useState('')
   const [offsetDias, setOffsetDias] = useState(0)
+  const [horariosDisponiveis, setHorariosDisponiveis] = useState([])
 
   const whatsapp = '5562999049716'
-  const horarios = ['09:00','10:00','14:00','16:00','18:00']
   const dataMinima = calcularDataMinima(prazoMaximo || 4)
-  const diasCalendario = gerarDiasCalendario(dataMinima)
+
+  const horariosUnificados = (() => {
+    if (itens.length === 0) return ['09:00','10:00','14:00','16:00','18:00']
+    const produtoComMenorHorarios = itens.reduce((acc, item) => {
+      const h = item.produto.horarios_retirada
+      if (!h || h.length === 0) return acc
+      if (!acc) return item.produto
+      return h.length < (acc.horarios_retirada?.length || 999) ? item.produto : acc
+    }, null)
+    const horariosProdutos = itens
+      .filter(i => i.produto.horarios_retirada?.length > 0)
+      .map(i => i.produto.horarios_retirada)
+    if (horariosProdutos.length === 0) return ['09:00','10:00','14:00','16:00','18:00']
+    const intersecao = horariosProdutos.reduce((acc, h) => acc.filter(x => h.includes(x)))
+    return intersecao.length > 0 ? intersecao.sort() : horariosProdutos[0].sort()
+  })()
+
+  const diasCalendario = gerarDiasCalendario(dataMinima, horariosUnificados)
   const diasVisiveis = diasCalendario.slice(offsetDias, offsetDias + 7)
+
+  useEffect(() => {
+    if (dataSelecionada) {
+      const disponiveis = horariosDisponiveisDoDia(dataSelecionada, dataMinima, horariosUnificados)
+      setHorariosDisponiveis(disponiveis)
+      if (!disponiveis.includes(horarioSelecionado)) setHorarioSelecionado('')
+    }
+  }, [dataSelecionada])
 
   if (itens.length === 0 && !pedidoConfirmado) {
     return (
@@ -114,7 +162,6 @@ export default function Checkout() {
 
       if (pedido) {
         const isUUID = (id) => /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id)
-
         await supabase.from('pedido_itens').insert(
           itens.map(item => ({
             pedido_id: pedido.id,
@@ -139,16 +186,17 @@ export default function Checkout() {
           `\n_Pedido #${pedido.id.slice(0,8).toUpperCase()}_`
         )
 
-        setNumeroPedido(pedido.id.slice(0,8).toUpperCase())
         setTotalFinal(totalValor)
+        setNumeroPedido(pedido.id.slice(0,8).toUpperCase())
         limparCarrinho()
         setPedidoConfirmado(true)
         setTimeout(() => {
           window.open('https://wa.me/' + whatsapp + '?text=' + msgWhats, '_blank')
         }, 800)
       }
-    } catch {
+    } catch (err) {
       toast.error('Erro ao enviar pedido. Tente novamente.')
+      console.error(err)
     }
     setEnviando(false)
   }
@@ -171,19 +219,13 @@ export default function Checkout() {
             <p style={{ fontSize: 16, color: '#D4537E', fontWeight: 700, margin: '8px 0 0' }}>Total: R$ {totalFinal.toFixed(2).replace('.', ',')}</p>
           </div>
           <div style={{ display: 'flex', gap: 12, flexDirection: 'column' }}>
-            <a
-              href={'https://wa.me/' + whatsapp}
-              target="_blank"
-              rel="noreferrer"
-              style={{ background: '#D4537E', color: '#fff', padding: '14px 24px', borderRadius: 24, fontWeight: 600, textDecoration: 'none', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}
-            >
+            <a href={'https://wa.me/' + whatsapp} target="_blank" rel="noreferrer"
+              style={{ background: '#D4537E', color: '#fff', padding: '14px 24px', borderRadius: 24, fontWeight: 600, textDecoration: 'none', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
               <MessageCircle size={18} />
               Abrir WhatsApp
             </a>
-            <button
-              onClick={() => navigate('/cardapio')}
-              style={{ background: 'transparent', color: '#D4537E', padding: '14px 24px', borderRadius: 24, fontWeight: 600, border: '2px solid #D4537E', cursor: 'pointer' }}
-            >
+            <button onClick={() => navigate('/cardapio')}
+              style={{ background: 'transparent', color: '#D4537E', padding: '14px 24px', borderRadius: 24, fontWeight: 600, border: '2px solid #D4537E', cursor: 'pointer' }}>
               Ver mais produtos
             </button>
           </div>
@@ -240,7 +282,7 @@ export default function Checkout() {
           </div>
           {prazoMaximo > 0 && (
             <div style={{ marginTop: 12, background: '#FBEAF0', borderRadius: 10, padding: '8px 14px', fontSize: 13, color: '#993556' }}>
-              ⏱ Prazo mínimo: <strong>{formatarPrazo(prazoMaximo)}</strong>
+              Prazo mínimo: <strong>{formatarPrazo(prazoMaximo)}</strong>
             </div>
           )}
         </div>
@@ -267,7 +309,7 @@ export default function Checkout() {
                   <button
                     key={i}
                     disabled={!dia.disponivel}
-                    onClick={() => dia.disponivel && setDataSelecionada(dia.data)}
+                    onClick={() => { if (dia.disponivel) { setDataSelecionada(dia.data); setHorarioSelecionado('') } }}
                     style={{
                       padding: '10px 4px',
                       borderRadius: 12,
@@ -293,25 +335,33 @@ export default function Checkout() {
                 <ChevronRight size={16} />
               </button>
             </div>
+
             {dataSelecionada && (
               <div>
                 <p style={{ fontSize: 14, color: '#6b7280', marginBottom: 12, display: 'flex', alignItems: 'center', gap: 6 }}>
                   <Clock size={14} color="#D4537E" />
-                  Escolha o horário:
+                  Horários disponíveis para {dataSelecionada.toLocaleDateString('pt-BR')}:
                 </p>
-                <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-                  {horarios.map(h => (
-                    <button
-                      key={h}
-                      onClick={() => setHorarioSelecionado(h)}
-                      style={{ padding: '10px 20px', borderRadius: 24, border: '1.5px solid', borderColor: horarioSelecionado === h ? '#D4537E' : '#fce7f3', background: horarioSelecionado === h ? '#D4537E' : '#fff', color: horarioSelecionado === h ? '#fff' : '#6b7280', fontSize: 14, fontWeight: 500, cursor: 'pointer' }}
-                    >
-                      {h}
-                    </button>
-                  ))}
-                </div>
+                {horariosDisponiveis.length === 0 ? (
+                  <div style={{ background: '#fef2f2', borderRadius: 10, padding: '12px 16px', fontSize: 14, color: '#ef4444' }}>
+                    Nenhum horário disponível neste dia. Escolha outra data.
+                  </div>
+                ) : (
+                  <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                    {horariosDisponiveis.map(h => (
+                      <button
+                        key={h}
+                        onClick={() => setHorarioSelecionado(h)}
+                        style={{ padding: '10px 20px', borderRadius: 24, border: '1.5px solid', borderColor: horarioSelecionado === h ? '#D4537E' : '#fce7f3', background: horarioSelecionado === h ? '#D4537E' : '#fff', color: horarioSelecionado === h ? '#fff' : '#6b7280', fontSize: 14, fontWeight: 500, cursor: 'pointer' }}
+                      >
+                        {h}
+                      </button>
+                    ))}
+                  </div>
+                )}
               </div>
             )}
+
             <button
               onClick={() => {
                 if (!dataSelecionada) return toast.error('Escolha uma data')
@@ -375,7 +425,7 @@ export default function Checkout() {
                 { label: 'Retirada', valor: dataSelecionada?.toLocaleDateString('pt-BR') + ' às ' + horarioSelecionado },
                 { label: 'Nome', valor: nome },
                 { label: 'WhatsApp', valor: telefone },
-                observacoes && { label: 'Observações', valor: observacoes },
+                observacoes ? { label: 'Observações', valor: observacoes } : null,
               ].filter(Boolean).map((item, i) => (
                 <div key={i} style={{ display: 'flex', justifyContent: 'space-between', padding: '12px 0', borderBottom: '1px solid #fce7f3' }}>
                   <span style={{ color: '#9ca3af', fontSize: 14 }}>{item.label}</span>
@@ -388,7 +438,7 @@ export default function Checkout() {
               </div>
             </div>
             <div style={{ background: '#FBEAF0', borderRadius: 12, padding: 14, margin: '20px 0', fontSize: 13, color: '#993556' }}>
-              💬 Após confirmar, o WhatsApp será aberto automaticamente para finalizar com a Tufit.
+              Após confirmar, o WhatsApp será aberto automaticamente para finalizar com a Tufit.
             </div>
             <div style={{ display: 'flex', gap: 12 }}>
               <button onClick={() => setEtapa(2)} style={{ flex: 1, background: 'transparent', color: '#D4537E', padding: '16px', borderRadius: 24, fontWeight: 600, fontSize: 15, border: '2px solid #D4537E', cursor: 'pointer' }}>← Voltar</button>
