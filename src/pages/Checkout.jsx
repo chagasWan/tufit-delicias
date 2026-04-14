@@ -49,6 +49,7 @@ function formatarTelefone(valor) {
 export default function Checkout() {
   const navigate = useNavigate()
   const { itens, totalValor, prazoMaximo, limparCarrinho } = useCarrinho()
+  const [totalFinal, setTotalFinal] = useState(0)
   const [etapa, setEtapa] = useState(1)
   const [enviando, setEnviando] = useState(false)
   const [pedidoConfirmado, setPedidoConfirmado] = useState(false)
@@ -112,10 +113,12 @@ export default function Checkout() {
       }).select().single()
 
       if (pedido) {
+        const isUUID = (id) => /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id)
+
         await supabase.from('pedido_itens').insert(
           itens.map(item => ({
             pedido_id: pedido.id,
-            produto_id: item.produto.id,
+            produto_id: isUUID(item.produto.id) ? item.produto.id : null,
             nome_produto: item.produto.nome,
             preco_unitario: item.produto.preco,
             quantidade: item.quantidade,
@@ -137,6 +140,7 @@ export default function Checkout() {
         )
 
         setNumeroPedido(pedido.id.slice(0,8).toUpperCase())
+        setTotalFinal(totalValor)
         limparCarrinho()
         setPedidoConfirmado(true)
         setTimeout(() => {
@@ -164,7 +168,7 @@ export default function Checkout() {
           <div style={{ background: '#FBEAF0', borderRadius: 16, padding: 20, marginBottom: 24, textAlign: 'left' }}>
             <p style={{ fontSize: 14, color: '#993556', fontWeight: 600, margin: '0 0 10px' }}>Resumo</p>
             <p style={{ fontSize: 14, color: '#6b7280', margin: '4px 0' }}>Retirada: {dataSelecionada?.toLocaleDateString('pt-BR')} às {horarioSelecionado}</p>
-            <p style={{ fontSize: 16, color: '#D4537E', fontWeight: 700, margin: '8px 0 0' }}>Total: R$ {totalValor.toFixed(2).replace('.', ',')}</p>
+            <p style={{ fontSize: 16, color: '#D4537E', fontWeight: 700, margin: '8px 0 0' }}>Total: R$ {totalFinal.toFixed(2).replace('.', ',')}</p>
           </div>
           <div style={{ display: 'flex', gap: 12, flexDirection: 'column' }}>
             <a
