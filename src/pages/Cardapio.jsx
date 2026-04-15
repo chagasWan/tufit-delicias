@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import { useIsMobile } from '../hooks/useIsMobile'
 import { useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { ShoppingBag, Heart, Search, Filter, ChevronDown, MessageCircle, ArrowLeft } from 'lucide-react'
@@ -108,6 +109,7 @@ export default function Cardapio() {
   const [loading, setLoading] = useState(true)
   const navigate = useNavigate()
   const { adicionarItem } = useCarrinho()
+  const isMobile = useIsMobile()
   const whatsapp = '5562999049716'
 
   useEffect(() => {
@@ -143,7 +145,7 @@ export default function Cardapio() {
     <div style={{ minHeight: '100vh', background: '#FDF8F0', fontFamily: 'Inter, sans-serif' }}>
 
       <nav style={{ background: 'rgba(255,255,255,0.95)', backdropFilter: 'blur(8px)', position: 'sticky', top: 0, zIndex: 50, borderBottom: '1px solid #fce7f3' }}>
-        <div style={{ maxWidth: 1152, margin: '0 auto', padding: '12px 24px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+        <div style={{ maxWidth: 1152, margin: '0 auto', padding: isMobile ? '12px 16px' : '12px 24px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
             <button
               onClick={() => navigate('/')}
@@ -218,10 +220,10 @@ export default function Cardapio() {
         </div>
       </section>
 
-      <section style={{ padding: '40px 24px 80px' }}>
+      <section style={{ padding: isMobile ? '24px 16px 48px' : '40px 24px 80px' }}>
         <div style={{ maxWidth: 1152, margin: '0 auto' }}>
           {loading ? (
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 24 }}>
+            <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : 'repeat(3, 1fr)', gap: 24 }}>
               {[1,2,3,4,5,6].map(i => (
                 <div key={i} style={{ background: '#fff', borderRadius: 20, padding: 16 }}>
                   <div style={{ height: 200, background: '#fce7f3', borderRadius: 12, marginBottom: 16 }} />
@@ -235,7 +237,7 @@ export default function Cardapio() {
               <p style={{ color: '#9ca3af', fontSize: 14, marginBottom: 20 }}>
                 {produtosFiltrados.length} produto{produtosFiltrados.length !== 1 ? 's' : ''} encontrado{produtosFiltrados.length !== 1 ? 's' : ''}
               </p>
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 24 }}>
+              <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : 'repeat(3, 1fr)', gap: 24 }}>
                 {produtosFiltrados.map(produto => (
                   <ProdutoCard key={produto.id} produto={produto} onPedir={handlePedir} />
                 ))}

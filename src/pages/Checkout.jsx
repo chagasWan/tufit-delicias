@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { useCarrinho } from '../contexts/CarrinhoContext'
 import { supabase } from '../lib/supabase'
 import { Heart, ArrowLeft, Calendar, Clock, User, MessageCircle, CheckCircle, ChevronLeft, ChevronRight, ShoppingBag, MapPin, Navigation } from 'lucide-react'
+import { useIsMobile } from '../hooks/useIsMobile'
 import toast from 'react-hot-toast'
 
 const TUFIT_LAT = -16.671841955882282
@@ -104,6 +105,7 @@ function formatarTelefone(valor) {
 
 export default function Checkout() {
   const navigate = useNavigate()
+  const isMobile = useIsMobile()
   const { itens, totalValor, prazoMaximo, limparCarrinho } = useCarrinho()
   const [totalFinal, setTotalFinal] = useState(0)
   const [etapa, setEtapa] = useState(1)
@@ -405,7 +407,7 @@ export default function Checkout() {
                 <Navigation size={20} color="#D4537E" />
                 <h3 style={{ fontSize: 18, fontWeight: 700, color: '#2C2C2A', margin: 0 }}>Como deseja receber?</h3>
               </div>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 16 }}>
+              <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: 12, marginBottom: 16 }}>
                 <button
                   onClick={() => { setTipoEntrega('retirada'); setFreteInfo(null); setErroFrete('') }}
                   style={{ padding: '16px', borderRadius: 14, border: '2px solid', borderColor: tipoEntrega === 'retirada' ? '#D4537E' : '#e5e7eb', background: tipoEntrega === 'retirada' ? '#FBEAF0' : '#fff', cursor: 'pointer', textAlign: 'center' }}
