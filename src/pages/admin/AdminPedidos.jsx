@@ -70,6 +70,12 @@ function ModalPedido({ pedido, onFechar, onAtualizarStatus }) {
           <p style={{ color: '#6b7280', fontSize: 14, margin: '2px 0' }}>
             📅 {new Date(pedido.data_retirada + 'T12:00:00').toLocaleDateString('pt-BR')} às {pedido.hora_retirada}
           </p>
+          <p style={{ color: '#6b7280', fontSize: 14, margin: '2px 0' }}>
+            {pedido.tipo_entrega === 'entrega' ? '🚗 Entrega' : '🏠 Retirada no local'}
+          </p>
+          {pedido.tipo_entrega === 'entrega' && pedido.endereco_entrega && (
+            <p style={{ color: '#6b7280', fontSize: 14, margin: '2px 0' }}>📍 {pedido.endereco_entrega}</p>
+          )}
           {pedido.observacoes && <p style={{ color: '#6b7280', fontSize: 14, margin: '8px 0 0', fontStyle: 'italic' }}>💬 {pedido.observacoes}</p>}
         </div>
 
@@ -83,6 +89,18 @@ function ModalPedido({ pedido, onFechar, onAtualizarStatus }) {
               <span style={{ color: '#D4537E', fontWeight: 600, fontSize: 14 }}>R$ {item.subtotal?.toFixed(2).replace('.', ',')}</span>
             </div>
           ))}
+          {pedido.taxa_entrega > 0 && (
+            <div style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 0', borderBottom: '1px solid #f3f4f6' }}>
+              <span style={{ color: '#6b7280', fontSize: 14 }}>Frete</span>
+              <span style={{ color: '#6b7280', fontWeight: 600, fontSize: 14 }}>R$ {pedido.taxa_entrega?.toFixed(2).replace('.', ',')}</span>
+            </div>
+          )}
+          {pedido.desconto > 0 && (
+            <div style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 0', borderBottom: '1px solid #f3f4f6' }}>
+              <span style={{ color: '#10b981', fontSize: 14 }}>Desconto</span>
+              <span style={{ color: '#10b981', fontWeight: 600, fontSize: 14 }}>- R$ {pedido.desconto?.toFixed(2).replace('.', ',')}</span>
+            </div>
+          )}
           <div style={{ display: 'flex', justifyContent: 'space-between', padding: '12px 0 0' }}>
             <span style={{ fontWeight: 700, color: '#2C2C2A' }}>Total</span>
             <span style={{ fontWeight: 800, color: '#D4537E', fontSize: 18 }}>R$ {pedido.total?.toFixed(2).replace('.', ',')}</span>
