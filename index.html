@@ -1,13 +1,41 @@
 <!doctype html>
-<html lang="en">
+<html lang="pt-BR">
   <head>
     <meta charset="UTF-8" />
-    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>tufit-delicias</title>
+
+    <!-- PWA -->
+    <link rel="manifest" href="/manifest.json" />
+    <meta name="theme-color" content="#D4537E" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+    <meta name="apple-mobile-web-app-title" content="Tufit Delicias" />
+    <link rel="apple-touch-icon" href="/icon-192.png" />
+
+    <!-- SEO -->
+    <meta name="description" content="Doces saudaveis sem acucar, gluten e lactose. Encomende agora!" />
+    <meta name="keywords" content="doces saudaveis, sem gluten, sem lactose, sem acucar, Goiania" />
+
+    <!-- Open Graph (preview no WhatsApp e Instagram) -->
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content="Tufit Delicias - Doces Saudaveis" />
+    <meta property="og:description" content="Doces sem acucar, gluten e lactose feitos com amor em Goiania. Encomende pelo site!" />
+    <meta property="og:image" content="/icon-512.png" />
+
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <title>Tufit Delicias</title>
   </head>
   <body>
     <div id="root"></div>
     <script type="module" src="/src/main.jsx"></script>
+    <script>
+      if ('serviceWorker' in navigator) {
+        window.addEventListener('load', function() {
+          navigator.serviceWorker.register('/sw.js')
+            .then(function(reg) { console.log('SW registrado:', reg.scope) })
+            .catch(function(err) { console.log('SW erro:', err) })
+        })
+      }
+    </script>
   </body>
 </html>

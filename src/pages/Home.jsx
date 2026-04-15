@@ -2,6 +2,9 @@ import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { ShoppingBag, Star, Leaf, Heart, ChevronDown, MessageCircle } from 'lucide-react'
+import { useCarrinho } from '../contexts/CarrinhoContext'
+import logoImg from '../assets/logo-tufit.png'
+import thainaraImg from '../assets/thainara.png'
 
 function ProdutoCard({ produto, onPedir }) {
   return (
@@ -10,7 +13,7 @@ function ProdutoCard({ produto, onPedir }) {
         {produto.foto_url ? (
           <img src={produto.foto_url} alt={produto.nome} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
         ) : (
-          <span style={{ fontSize: 64 }}>🍰</span>
+          <img src={logoImg} alt="Tufit" style={{ height: 36, width: "auto", objectFit: "contain" }} />
         )}
         {produto.destaque && (
           <div style={{ position: 'absolute', top: 12, left: 12, background: '#D4537E', color: '#fff', fontSize: 12, padding: '4px 12px', borderRadius: 20, fontWeight: 500 }}>
@@ -66,6 +69,7 @@ export default function Home() {
   const [avaliacoes, setAvaliacoes] = useState([])
   const [loading, setLoading] = useState(true)
   const navigate = useNavigate()
+  const { adicionarItem } = useCarrinho()
   const whatsapp = '5562999049716'
   const instagram = 'https://instagram.com/tufitdelicias'
 
@@ -160,7 +164,7 @@ export default function Home() {
           <div style={{ display: 'flex', justifyContent: 'center' }}>
             <div style={{ width: 380, height: 380, background: '#FBEAF0', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', position: 'relative' }}>
               <div style={{ width: 280, height: 280, background: '#F4C0D1', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                <span style={{ fontSize: 100 }}>🍰</span>
+                <img src={logoImg} alt="Tufit Delícias" style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: '50%' }} />
               </div>
               <div style={{ position: 'absolute', top: 20, right: 10, background: '#fff', borderRadius: 16, padding: '10px 14px', boxShadow: '0 4px 16px rgba(0,0,0,0.1)' }}>
                 <p style={{ fontSize: 11, color: '#9ca3af', margin: 0 }}>Avaliação</p>
@@ -212,12 +216,12 @@ export default function Home() {
           ) : produtos.length > 0 ? (
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 24 }}>
               {produtos.map(produto => (
-                <ProdutoCard key={produto.id} produto={produto} onPedir={() => navigate('/pedido/' + produto.id)} />
+                <ProdutoCard key={produto.id} produto={produto} onPedir={() => { adicionarItem(produto, 1); navigate('/checkout') }} />
               ))}
             </div>
           ) : (
             <div style={{ textAlign: 'center', padding: '64px 0' }}>
-              <div style={{ fontSize: 64, marginBottom: 16 }}>🍰</div>
+              <img src={logoImg} alt="Tufit Delícias" style={{ height: 64, width: "auto", objectFit: "contain", marginBottom: 16 }} />
               <p style={{ color: '#9ca3af', fontSize: 16 }}>Produtos em breve!</p>
             </div>
           )}
@@ -235,9 +239,9 @@ export default function Home() {
       <section id="sobre" style={{ padding: '80px 24px', background: '#FBEAF0' }}>
         <div style={{ maxWidth: 1152, margin: '0 auto', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 64, alignItems: 'center' }}>
           <div style={{ display: 'flex', justifyContent: 'center' }}>
-            <div style={{ width: 280, height: 280, background: '#F4C0D1', borderRadius: 32, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 96, boxShadow: '0 20px 60px rgba(212,83,126,0.2)' }}>
-              👩‍🍳
-            </div>
+            <div style={{ width: 280, height: 320, borderRadius: 32, overflow: 'hidden', boxShadow: '0 20px 60px rgba(212,83,126,0.25)' }}>
+                <img src={thainaraImg} alt="Thainara — Nutricionista e Confeiteira" style={{ width: '100%', height: '100%', objectFit: 'cover', objectPosition: 'top' }} />
+              </div>
           </div>
           <div>
             <span style={{ color: '#D4537E', fontWeight: 500, fontSize: 13, textTransform: 'uppercase', letterSpacing: 2 }}>Nossa história</span>
