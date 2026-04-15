@@ -115,7 +115,7 @@ function ModalIngrediente({ ingrediente, onFechar, onSalvar }) {
   )
 }
 
-function ModalReceita({ receita, ingredientes, onFechar, onSalvar }) {
+function ModalReceita({ receita, ingredientes, margemInicial = 40, onFechar, onSalvar }) {
   const [form, setForm] = useState({
     nome: receita?.nome || '',
     descricao: receita?.descricao || '',
@@ -126,7 +126,7 @@ function ModalReceita({ receita, ingredientes, onFechar, onSalvar }) {
   })
   const [itens, setItens] = useState([])
   const [salvando, setSalvando] = useState(false)
-  const [margem, setMargem] = useState(40)
+  const [margem, setMargem] = useState(margemInicial)
 
   useEffect(() => {
     if (receita?.id) {
@@ -347,16 +347,19 @@ export default function AdminReceitas() {
   const [editandoReceita, setEditandoReceita] = useState(null)
   const [editandoIngrediente, setEditandoIngrediente] = useState(null)
   const [expandido, setExpandido] = useState(null)
+  const [margemPadrao, setMargemPadrao] = useState(40)
 
   useEffect(() => { buscarDados() }, [])
 
   async function buscarDados() {
-    const [{ data: r }, { data: i }] = await Promise.all([
+    const [{ data: r }, { data: i }, { data: cfg }] = await Promise.all([
       supabase.from('receitas').select('*, receita_ingredientes(*, ingredientes(*))').order('nome'),
       supabase.from('ingredientes').select('*').order('nome'),
+      supabase.from('configuracoes').select('valor').eq('chave', 'margem_padrao').single(),
     ])
     setReceitas(r || [])
     setIngredientes(i || [])
+    if (cfg?.valor) setMargemPadrao(parseFloat(cfg.valor) || 40)
     setLoading(false)
   }
 
@@ -397,6 +400,7 @@ export default function AdminReceitas() {
         <ModalReceita
           receita={editandoReceita}
           ingredientes={ingredientes}
+          margemInicial={margemPadrao}
           onFechar={() => { setModalReceita(false); setEditandoReceita(null) }}
           onSalvar={() => { setModalReceita(false); setEditandoReceita(null); buscarDados() }}
         />
@@ -500,7 +504,7 @@ export default function AdminReceitas() {
           ) : receitas.map(rec => {
             const custo = calcularCustoReceita(rec)
             const custoPorUnidade = rec.rendimento > 0 ? custo / rec.rendimento : 0
-            const precoSugerido40 = custoPorUnidade / 0.6
+            const precoSugerido40 = custoPorUnidade / (1 - margemPadrao / 100)
             const aberto = expandido === rec.id
             return (
               <div key={rec.id} style={{ background: '#fff', borderRadius: 14, border: '1px solid #f3f4f6', overflow: 'hidden' }}>
@@ -517,7 +521,7 @@ export default function AdminReceitas() {
                       {custo > 0 && <>
                         <span style={{ fontSize: 13, color: '#6b7280' }}>Custo total: <strong>R$ {custo.toFixed(2).replace('.', ',')}</strong></span>
                         <span style={{ fontSize: 13, color: '#6b7280' }}>Por unidade: <strong>R$ {custoPorUnidade.toFixed(2).replace('.', ',')}</strong></span>
-                        <span style={{ fontSize: 13, color: '#D4537E', fontWeight: 600 }}>Vender por: R$ {precoSugerido40.toFixed(2).replace('.', ',')}+</span>
+                        <span style={{ fontSize: 13, color: '#D4537E', fontWeight: 600 }}>Vender por ({margemPadrao}% margem): R$ {precoSugerido40.toFixed(2).replace('.', ',')}+</span>
                       </>}
                     </div>
                   </div>
