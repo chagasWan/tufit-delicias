@@ -1,10 +1,14 @@
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useLocation } from 'react-router-dom'
 import { useCarrinho } from '../contexts/CarrinhoContext'
 import { ShoppingBag, X, Plus, Minus, Trash2 } from 'lucide-react'
 
 export default function CarrinhoFlutuante() {
   const { itens, aberto, setAberto, totalItens, totalValor, prazoMaximo, alterarQuantidade, removerItem, limparCarrinho } = useCarrinho()
   const navigate = useNavigate()
+  const location = useLocation()
+
+  // Esconder no checkout para não sobrepor os botões
+  if (location.pathname === '/checkout') return null
 
   function formatarPrazo(horas) {
     if (!horas) return ''
