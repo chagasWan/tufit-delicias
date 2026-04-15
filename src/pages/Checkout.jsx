@@ -10,6 +10,7 @@ const TUFIT_LNG = -49.241256992830735
 const PRECO_POR_KM = 2.00
 const FATOR_CORRECAO = 1.3
 const DISTANCIA_MAXIMA_KM = 20
+const DISTANCIA_MINIMA_GRATIS_KM = 2
 
 const FERIADOS_NACIONAIS = [
   '01-01', '04-21', '05-01', '09-07', '10-12',
@@ -189,10 +190,11 @@ export default function Checkout() {
         return
       }
 
-      const taxa = distEstimada * PRECO_POR_KM
+      const taxa = distEstimada <= DISTANCIA_MINIMA_GRATIS_KM ? 0 : distEstimada * PRECO_POR_KM
       setFreteInfo({
         taxa: Math.round(taxa * 100) / 100,
         distancia: Math.round(distEstimada * 10) / 10,
+        gratis: distEstimada <= DISTANCIA_MINIMA_GRATIS_KM,
         enderecoConfirmado: display_name,
       })
     } catch {
@@ -381,7 +383,7 @@ export default function Checkout() {
             {tipoEntrega === 'entrega' && freteInfo && (
               <div style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 0' }}>
                 <span style={{ color: '#6b7280', fontSize: 14 }}>Frete (~{freteInfo.distancia}km)</span>
-                <span style={{ color: '#6b7280', fontWeight: 600, fontSize: 14 }}>+ R$ {freteInfo.taxa.toFixed(2).replace('.', ',')}</span>
+                <span style={{ color: freteInfo.gratis ? '#15803d' : '#6b7280', fontWeight: 600, fontSize: 14 }}>{freteInfo.gratis ? 'Grátis 🎉' : '+ R$ ' + freteInfo.taxa.toFixed(2).replace('.', ',')}</span>
               </div>
             )}
             <div style={{ display: 'flex', justifyContent: 'space-between', paddingTop: 8, borderTop: '1.5px solid #fce7f3' }}>
@@ -418,7 +420,7 @@ export default function Checkout() {
                 >
                   <div style={{ fontSize: 28, marginBottom: 6 }}>🚗</div>
                   <p style={{ fontWeight: 700, color: tipoEntrega === 'entrega' ? '#D4537E' : '#2C2C2A', margin: '0 0 2px', fontSize: 15 }}>Receber em casa</p>
-                  <p style={{ color: '#9ca3af', fontSize: 12, margin: 0 }}>R$ 2,00/km · até 20km</p>
+                  <p style={{ color: '#9ca3af', fontSize: 12, margin: 0 }}>Grátis até 2km · R$ 2,00/km</p>
                 </button>
               </div>
 
@@ -466,10 +468,10 @@ export default function Checkout() {
                     <div style={{ background: '#f0fdf4', borderRadius: 12, padding: '14px 16px', marginTop: 12, border: '1px solid #bbf7d0' }}>
                       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                         <div>
-                          <p style={{ fontWeight: 600, color: '#15803d', fontSize: 14, margin: '0 0 2px' }}>Frete calculado</p>
-                          <p style={{ color: '#6b7280', fontSize: 12, margin: 0 }}>Distância estimada: {freteInfo.distancia}km</p>
+                          <p style={{ fontWeight: 600, color: '#15803d', fontSize: 14, margin: '0 0 2px' }}>{freteInfo.gratis ? 'Frete grátis! 🎉' : 'Frete calculado'}</p>
+                          <p style={{ color: '#6b7280', fontSize: 12, margin: 0 }}>Distância estimada: {freteInfo.distancia}km{freteInfo.gratis ? ' (até 2km é grátis)' : ''}</p>
                         </div>
-                        <p style={{ fontWeight: 800, color: '#15803d', fontSize: 20, margin: 0 }}>R$ {freteInfo.taxa.toFixed(2).replace('.', ',')}</p>
+                        <p style={{ fontWeight: 800, color: '#15803d', fontSize: 20, margin: 0 }}>{freteInfo.gratis ? 'Grátis' : 'R$ ' + freteInfo.taxa.toFixed(2).replace('.', ',')}</p>
                       </div>
                     </div>
                   )}

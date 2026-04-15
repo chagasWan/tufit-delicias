@@ -14,6 +14,8 @@ import AdminReceitas from './pages/admin/AdminReceitas'
 import AdminDashboard from './pages/admin/AdminDashboard'
 import AdminClientes from './pages/admin/AdminClientes'
 import AdminConfiguracoes from './pages/admin/AdminConfiguracoes'
+import AdminProducao from './pages/admin/AdminProducao'
+import AdminCompras from './pages/admin/AdminCompras'
 
 function App() {
   return (
@@ -33,6 +35,8 @@ function App() {
               <Route path="/admin/produtos" element={<AdminProdutos />} />
               <Route path="/admin/receitas" element={<AdminReceitas />} />
               <Route path="/admin/clientes" element={<AdminClientes />} />
+              <Route path="/admin/producao" element={<AdminProducao />} />
+              <Route path="/admin/compras" element={<AdminCompras />} />
               <Route path="/admin/configuracoes" element={<AdminConfiguracoes />} />
             </Route>
           </Route>
