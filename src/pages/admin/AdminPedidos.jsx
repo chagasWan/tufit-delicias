@@ -73,6 +73,7 @@ function ModalPedido({ pedido, onFechar, onAtualizarStatus }) {
           <p style={{ color: '#6b7280', fontSize: 14, margin: '2px 0' }}>
             {pedido.tipo_entrega === 'entrega' ? '🚗 Entrega' : '🏠 Retirada no local'}
           </p>
+
           {pedido.tipo_entrega === 'entrega' && pedido.endereco_entrega && (
             <p style={{ color: '#6b7280', fontSize: 14, margin: '2px 0' }}>📍 {pedido.endereco_entrega}</p>
           )}
@@ -108,6 +109,22 @@ function ModalPedido({ pedido, onFechar, onAtualizarStatus }) {
         </div>
 
         <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+          {pedido.status === 'entregue' && pedido.clientes?.telefone && (
+            <button
+              onClick={() => {
+                const link = window.location.origin + '/avaliacao/' + pedido.id
+                const msg = encodeURIComponent(
+                  'Olá ' + (pedido.clientes.nome || '') + '! 🍰\n\n' +
+                  'Seu pedido da *Tufit Delícias* foi entregue! Esperamos que tenha amado. 💕\n\n' +
+                  'Avalie seu pedido aqui:\n' + link
+                )
+                window.open('https://wa.me/55' + pedido.clientes.telefone + '?text=' + msg, '_blank')
+              }}
+              style={{ width: '100%', background: '#f0fdf4', color: '#15803d', padding: '10px 16px', borderRadius: 24, border: '1.5px solid #bbf7d0', cursor: 'pointer', fontWeight: 600, fontSize: 13, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}
+            >
+              ⭐ Enviar link de avaliação
+            </button>
+          )}
           {proximo && (
             <button
               onClick={() => { onAtualizarStatus(pedido.id, proximo); onFechar() }}
@@ -173,6 +190,25 @@ export default function AdminPedidos() {
     } else {
       toast.success('Status atualizado!')
       buscarPedidos()
+
+      // Quando marcar como entregue, oferecer envio do link de avaliação
+      if (novoStatus === 'entregue') {
+        const pedido = pedidos.find(p => p.id === pedidoId)
+        if (pedido?.clientes?.telefone) {
+          const link = window.location.origin + '/avaliacao/' + pedidoId
+          const msg = encodeURIComponent(
+            'Olá ' + (pedido.clientes.nome || '') + '! 🍰\n\n' +
+            'Seu pedido da *Tufit Delícias* foi entregue! Esperamos que tenha amado tudo. 💕\n\n' +
+            'Conta pra gente o que achou? Sua avaliação é muito importante para nós:\n' +
+            link
+          )
+          setTimeout(() => {
+            if (confirm('Deseja enviar o link de avaliação para o cliente via WhatsApp?')) {
+              window.open('https://wa.me/55' + pedido.clientes.telefone + '?text=' + msg, '_blank')
+            }
+          }, 500)
+        }
+      }
     }
     setAtualizando(false)
   }

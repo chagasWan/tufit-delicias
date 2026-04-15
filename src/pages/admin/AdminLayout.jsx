@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useNavigate, useLocation, Outlet } from 'react-router-dom'
 import { supabase } from '../../lib/supabase'
-import { Heart, ShoppingBag, Package, BookOpen, BarChart2, Users, Settings, LogOut, Menu, X, Bell, CalendarDays, ShoppingCart } from 'lucide-react'
+import { Heart, ShoppingBag, Package, BookOpen, BarChart2, Users, Settings, LogOut, Menu, X, Bell, CalendarDays, ShoppingCart, Tag } from 'lucide-react'
 import toast from 'react-hot-toast'
 
 const menus = [
@@ -12,6 +12,7 @@ const menus = [
   { path: '/admin/clientes', label: 'Clientes', icon: Users },
   { path: '/admin/producao', label: 'Produção', icon: CalendarDays },
   { path: '/admin/compras', label: 'Compras', icon: ShoppingCart },
+  { path: '/admin/cupons', label: 'Cupons', icon: Tag },
   { path: '/admin/configuracoes', label: 'Configurações', icon: Settings },
 ]
 

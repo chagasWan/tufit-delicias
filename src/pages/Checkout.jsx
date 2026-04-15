@@ -125,6 +125,11 @@ export default function Checkout() {
   const [nome, setNome] = useState('')
   const [telefone, setTelefone] = useState('')
   const [observacoes, setObservacoes] = useState('')
+  const [formaPagamento, setFormaPagamento] = useState('pix')
+  const [cupomCodigo, setCupomCodigo] = useState('')
+  const [cupomAplicado, setCupomAplicado] = useState(null)
+  const [cupomErro, setCupomErro] = useState('')
+  const [validandoCupom, setValidandoCupom] = useState(false)
   const [offsetDias, setOffsetDias] = useState(0)
   const [horariosDisponiveis, setHorariosDisponiveis] = useState([])
 
@@ -153,7 +158,12 @@ export default function Checkout() {
   const diasVisiveis = diasCalendario.slice(offsetDias, offsetDias + 7)
 
   const taxaEntrega = freteInfo?.taxa || 0
-  const totalComFrete = totalValor + taxaEntrega
+  const desconto = cupomAplicado
+    ? cupomAplicado.tipo === 'percentual'
+      ? Math.round((totalValor * cupomAplicado.valor / 100) * 100) / 100
+      : Math.min(cupomAplicado.valor, totalValor)
+    : 0
+  const totalComFrete = totalValor + taxaEntrega - desconto
 
   useEffect(() => {
     if (dataSelecionada) {
@@ -248,8 +258,11 @@ export default function Checkout() {
         endereco_entrega: tipoEntrega === 'entrega' ? enderecoEntrega : null,
         taxa_entrega: taxaEntrega,
         subtotal: totalValor,
+        desconto: desconto,
+        cupom_codigo: cupomAplicado?.codigo || null,
         total: totalComFrete,
         observacoes: observacoes.trim() || null,
+        forma_pagamento: formaPagamento,
         status: 'novo',
       }).select().single()
 
@@ -277,6 +290,7 @@ export default function Checkout() {
           '*Cliente:* ' + nome + '\n*WhatsApp:* ' + telefone + '\n\n' +
           '*Itens:*\n' + listaItens + '\n\n' +
           '*Subtotal:* R$ ' + totalValor.toFixed(2).replace('.', ',') + '\n' +
+          (desconto > 0 ? '*Desconto:* - R$ ' + desconto.toFixed(2).replace('.', ',') + ' (' + cupomAplicado?.codigo + ')\n' : '') +
           infoEntrega +
           '*Total:* R$ ' + totalComFrete.toFixed(2).replace('.', ',') + '\n' +
           '*Data:* ' + dataFormatada + ' às ' + horarioSelecionado + '\n' +
@@ -337,6 +351,40 @@ export default function Checkout() {
     )
   }
 
+  async function validarCupom() {
+    if (!cupomCodigo.trim()) return
+    setValidandoCupom(true)
+    setCupomErro('')
+    const { data, error } = await supabase
+      .from('cupons')
+      .select('*')
+      .eq('codigo', cupomCodigo.trim().toUpperCase())
+      .eq('ativo', true)
+      .single()
+
+    if (error || !data) {
+      setCupomErro('Cupom inválido ou não encontrado')
+      setCupomAplicado(null)
+    } else if (data.valido_ate && new Date(data.valido_ate) < new Date()) {
+      setCupomErro('Este cupom está expirado')
+      setCupomAplicado(null)
+    } else if (data.uso_maximo && data.uso_atual >= data.uso_maximo) {
+      setCupomErro('Este cupom atingiu o limite de uso')
+      setCupomAplicado(null)
+    } else {
+      setCupomAplicado(data)
+      setCupomErro('')
+      toast.success('Cupom aplicado!')
+    }
+    setValidandoCupom(false)
+  }
+
+  function removerCupom() {
+    setCupomAplicado(null)
+    setCupomCodigo('')
+    setCupomErro('')
+  }
+
   return (
     <div style={{ minHeight: '100vh', background: '#FDF8F0', fontFamily: 'Inter, sans-serif' }}>
       <nav style={{ background: 'rgba(255,255,255,0.95)', backdropFilter: 'blur(8px)', position: 'sticky', top: 0, zIndex: 50, borderBottom: '1px solid #fce7f3' }}>
@@ -386,6 +434,12 @@ export default function Checkout() {
               <div style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 0' }}>
                 <span style={{ color: '#6b7280', fontSize: 14 }}>Frete (~{freteInfo.distancia}km)</span>
                 <span style={{ color: freteInfo.gratis ? '#15803d' : '#6b7280', fontWeight: 600, fontSize: 14 }}>{freteInfo.gratis ? 'Grátis 🎉' : '+ R$ ' + freteInfo.taxa.toFixed(2).replace('.', ',')}</span>
+              </div>
+            )}
+            {desconto > 0 && (
+              <div style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 0' }}>
+                <span style={{ color: '#10b981', fontSize: 14 }}>Desconto ({cupomAplicado?.codigo})</span>
+                <span style={{ color: '#10b981', fontWeight: 600, fontSize: 14 }}>- R$ {desconto.toFixed(2).replace('.', ',')}</span>
               </div>
             )}
             <div style={{ display: 'flex', justifyContent: 'space-between', paddingTop: 8, borderTop: '1.5px solid #fce7f3' }}>
@@ -572,6 +626,37 @@ export default function Checkout() {
               <h3 style={{ fontSize: 18, fontWeight: 700, color: '#2C2C2A', margin: 0 }}>Seus dados</h3>
             </div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+              {/* Campo cupom */}
+              <div>
+                <label style={{ fontSize: 14, color: '#6b7280', fontWeight: 500, display: 'block', marginBottom: 6 }}>Cupom de desconto (opcional)</label>
+                {cupomAplicado ? (
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: '#f0fdf4', border: '1.5px solid #bbf7d0', borderRadius: 12, padding: '12px 16px' }}>
+                    <div>
+                      <span style={{ fontWeight: 700, color: '#15803d', fontSize: 14 }}>✓ {cupomAplicado.codigo}</span>
+                      <span style={{ color: '#15803d', fontSize: 13, marginLeft: 8 }}>
+                        {cupomAplicado.tipo === 'percentual' ? `${cupomAplicado.valor}% de desconto` : `R$ ${cupomAplicado.valor.toFixed(2).replace('.', ',')} de desconto`}
+                      </span>
+                    </div>
+                    <button onClick={removerCupom} style={{ background: 'none', border: 'none', color: '#6b7280', cursor: 'pointer', fontSize: 18 }}>✕</button>
+                  </div>
+                ) : (
+                  <div style={{ display: 'flex', gap: 8 }}>
+                    <input
+                      type="text"
+                      placeholder="Digite o código"
+                      value={cupomCodigo}
+                      onChange={e => { setCupomCodigo(e.target.value.toUpperCase()); setCupomErro('') }}
+                      onKeyDown={e => e.key === 'Enter' && validarCupom()}
+                      style={{ flex: 1, padding: '12px 16px', borderRadius: 12, border: cupomErro ? '1.5px solid #ef4444' : '1.5px solid #fce7f3', fontSize: 14, outline: 'none', boxSizing: 'border-box', textTransform: 'uppercase' }}
+                    />
+                    <button onClick={validarCupom} disabled={validandoCupom || !cupomCodigo.trim()}
+                      style={{ padding: '12px 18px', background: '#D4537E', color: '#fff', border: 'none', borderRadius: 12, fontWeight: 600, fontSize: 14, cursor: 'pointer', whiteSpace: 'nowrap', opacity: !cupomCodigo.trim() ? 0.5 : 1 }}>
+                      {validandoCupom ? '...' : 'Aplicar'}
+                    </button>
+                  </div>
+                )}
+                {cupomErro && <p style={{ color: '#ef4444', fontSize: 12, margin: '4px 0 0' }}>{cupomErro}</p>}
+              </div>
               <div>
                 <label style={{ fontSize: 14, color: '#6b7280', fontWeight: 500, display: 'block', marginBottom: 6 }}>Nome completo *</label>
                 <input type="text" placeholder="Seu nome" value={nome} onChange={e => setNome(e.target.value)}
