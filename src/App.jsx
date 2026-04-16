@@ -12,6 +12,7 @@ import AdminLayout from './pages/admin/AdminLayout'
 import AdminPedidos from './pages/admin/AdminPedidos'
 import AdminProdutos from './pages/admin/AdminProdutos'
 import AdminReceitas from './pages/admin/AdminReceitas'
+import AdminInsumos from './pages/admin/AdminInsumos'
 import AdminDashboard from './pages/admin/AdminDashboard'
 import AdminClientes from './pages/admin/AdminClientes'
 import AdminConfiguracoes from './pages/admin/AdminConfiguracoes'
@@ -37,6 +38,7 @@ function App() {
               <Route path="/admin/pedidos" element={<AdminPedidos />} />
               <Route path="/admin/produtos" element={<AdminProdutos />} />
               <Route path="/admin/receitas" element={<AdminReceitas />} />
+              <Route path="/admin/insumos" element={<AdminInsumos />} />
               <Route path="/admin/clientes" element={<AdminClientes />} />
               <Route path="/admin/producao" element={<AdminProducao />} />
               <Route path="/admin/compras" element={<AdminCompras />} />

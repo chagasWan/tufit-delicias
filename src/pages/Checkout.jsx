@@ -146,10 +146,17 @@ export default function Checkout() {
 
   const horariosUnificados = (() => {
     if (itens.length === 0) return ['09:00','10:00','14:00','16:00','18:00']
+    // Usa horarios_entrega para entrega, horarios_retirada para retirada
+    const campo = tipoEntrega === 'entrega' ? 'horarios_entrega' : 'horarios_retirada'
+    const fallbackCampo = tipoEntrega === 'entrega' ? 'horarios_retirada' : 'horarios_entrega'
+    const defaultEntrega = ['12:00', '18:00', '19:00']
+    const defaultRetirada = ['09:00','10:00','14:00','16:00','18:00']
+    const defaultHorarios = tipoEntrega === 'entrega' ? defaultEntrega : defaultRetirada
+
     const horariosProdutos = itens
-      .filter(i => i.produto.horarios_retirada?.length > 0)
-      .map(i => i.produto.horarios_retirada)
-    if (horariosProdutos.length === 0) return ['09:00','10:00','14:00','16:00','18:00']
+      .filter(i => (i.produto[campo]?.length > 0) || (i.produto[fallbackCampo]?.length > 0))
+      .map(i => i.produto[campo]?.length > 0 ? i.produto[campo] : i.produto[fallbackCampo])
+    if (horariosProdutos.length === 0) return defaultHorarios
     const intersecao = horariosProdutos.reduce((acc, h) => acc.filter(x => h.includes(x)))
     return intersecao.length > 0 ? intersecao.sort() : horariosProdutos[0].sort()
   })()
@@ -463,7 +470,7 @@ export default function Checkout() {
               </div>
               <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: 12, marginBottom: 16 }}>
                 <button
-                  onClick={() => { setTipoEntrega('retirada'); setFreteInfo(null); setErroFrete('') }}
+                  onClick={() => { setTipoEntrega('retirada'); setFreteInfo(null); setErroFrete(''); setHorarioSelecionado('') }}
                   style={{ padding: '16px', borderRadius: 14, border: '2px solid', borderColor: tipoEntrega === 'retirada' ? '#D4537E' : '#e5e7eb', background: tipoEntrega === 'retirada' ? '#FBEAF0' : '#fff', cursor: 'pointer', textAlign: 'center' }}
                 >
                   <div style={{ fontSize: 28, marginBottom: 6 }}>🏪</div>
@@ -471,7 +478,7 @@ export default function Checkout() {
                   <p style={{ color: '#9ca3af', fontSize: 12, margin: 0 }}>Grátis</p>
                 </button>
                 <button
-                  onClick={() => setTipoEntrega('entrega')}
+                  onClick={() => { setTipoEntrega('entrega'); setHorarioSelecionado('') }}
                   style={{ padding: '16px', borderRadius: 14, border: '2px solid', borderColor: tipoEntrega === 'entrega' ? '#D4537E' : '#e5e7eb', background: tipoEntrega === 'entrega' ? '#FBEAF0' : '#fff', cursor: 'pointer', textAlign: 'center' }}
                 >
                   <div style={{ fontSize: 28, marginBottom: 6 }}>🚗</div>

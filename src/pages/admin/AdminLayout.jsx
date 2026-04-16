@@ -1,13 +1,14 @@
 import { useState, useEffect } from 'react'
 import { useNavigate, useLocation, Outlet } from 'react-router-dom'
 import { supabase } from '../../lib/supabase'
-import { Heart, ShoppingBag, Package, BookOpen, BarChart2, Users, Settings, LogOut, Menu, X, Bell, CalendarDays, ShoppingCart, Tag } from 'lucide-react'
+import { Heart, ShoppingBag, Package, BookOpen, BarChart2, Users, Settings, LogOut, Menu, X, Bell, CalendarDays, ShoppingCart, Tag, Layers } from 'lucide-react'
 import toast from 'react-hot-toast'
 
 const menus = [
   { path: '/admin', label: 'Dashboard', icon: BarChart2 },
   { path: '/admin/pedidos', label: 'Pedidos', icon: ShoppingBag },
   { path: '/admin/produtos', label: 'Produtos', icon: Package },
+  { path: '/admin/insumos', label: 'Insumos', icon: Layers },
   { path: '/admin/receitas', label: 'Receitas', icon: BookOpen },
   { path: '/admin/clientes', label: 'Clientes', icon: Users },
   { path: '/admin/producao', label: 'Produção', icon: CalendarDays },

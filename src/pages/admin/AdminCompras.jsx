@@ -87,7 +87,8 @@ export default function AdminCompras() {
               unidade_compra: ing.unidade_compra,
               quantidade_por_unidade: ing.quantidade_por_unidade,
               preco_unidade: ing.preco_unidade,
-              estoque_atual: ing.estoque_atual || 0,
+              estoque_atual: (ing.estoque_atual || 0) * (ing.quantidade_por_unidade || 1),
+              estoque_atual_compra: ing.estoque_atual || 0,
               necessario: 0,
               produtos: [],
             }
