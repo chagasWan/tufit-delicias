@@ -8,6 +8,89 @@ const labelStyle = { fontSize: 13, color: '#6b7280', fontWeight: 500, display: '
 
 const CATEGORIA_EMOJI = { ingrediente: '🥚', embalagem: '📦', material: '🎀' }
 
+
+function BuscaInsumo({ insumos, value, onChange, inputStyle }) {
+  const [busca, setBusca] = useState('')
+  const [aberto, setAberto] = useState(false)
+  const insumoSelecionado = insumos.find(i => i.id === value)
+
+  const insumosFiltrados = busca.trim()
+    ? insumos.filter(i => i.nome.toLowerCase().includes(busca.toLowerCase()))
+    : insumos
+
+  const porCategoria = {
+    ingrediente: insumosFiltrados.filter(i => i.categoria === 'ingrediente' || !i.categoria),
+    embalagem: insumosFiltrados.filter(i => i.categoria === 'embalagem'),
+    material: insumosFiltrados.filter(i => i.categoria === 'material'),
+  }
+
+  function selecionar(ins) {
+    onChange(ins.id)
+    setBusca('')
+    setAberto(false)
+  }
+
+  return (
+    <div style={{ position: 'relative' }}>
+      {/* Campo de exibição */}
+      <div
+        onClick={() => setAberto(v => !v)}
+        style={{ ...inputStyle, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: '#fff', userSelect: 'none' }}
+      >
+        <span style={{ color: insumoSelecionado ? '#2C2C2A' : '#9ca3af', fontSize: 14, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+          {insumoSelecionado ? `${CATEGORIA_EMOJI[insumoSelecionado.categoria] || '🥚'} ${insumoSelecionado.nome}` : 'Selecione o insumo...'}
+        </span>
+        <span style={{ color: '#9ca3af', flexShrink: 0, marginLeft: 4 }}>▾</span>
+      </div>
+
+      {/* Dropdown */}
+      {aberto && (
+        <div style={{ position: 'absolute', top: '100%', left: 0, right: 0, zIndex: 999, background: '#fff', borderRadius: 10, border: '1.5px solid #e5e7eb', boxShadow: '0 8px 24px rgba(0,0,0,0.12)', marginTop: 4, maxHeight: 280, display: 'flex', flexDirection: 'column' }}>
+          {/* Campo de busca */}
+          <div style={{ padding: '8px 10px', borderBottom: '1px solid #f3f4f6' }}>
+            <input
+              autoFocus
+              value={busca}
+              onChange={e => setBusca(e.target.value)}
+              placeholder="🔍 Buscar insumo..."
+              onClick={e => e.stopPropagation()}
+              style={{ width: '100%', padding: '7px 10px', borderRadius: 8, border: '1.5px solid #fce7f3', fontSize: 13, outline: 'none', boxSizing: 'border-box' }}
+            />
+          </div>
+
+          {/* Lista */}
+          <div style={{ overflowY: 'auto', flex: 1 }}>
+            {insumosFiltrados.length === 0 ? (
+              <div style={{ padding: '16px', textAlign: 'center', color: '#9ca3af', fontSize: 13 }}>Nenhum insumo encontrado</div>
+            ) : (
+              Object.entries(porCategoria).map(([cat, lista]) => lista.length === 0 ? null : (
+                <div key={cat}>
+                  <div style={{ padding: '6px 12px 2px', fontSize: 11, fontWeight: 700, color: '#9ca3af', textTransform: 'uppercase', letterSpacing: 0.5 }}>
+                    {CATEGORIA_EMOJI[cat]} {cat.charAt(0).toUpperCase() + cat.slice(1)}s
+                  </div>
+                  {lista.map(ins => (
+                    <div key={ins.id} onClick={() => selecionar(ins)}
+                      style={{ padding: '8px 14px', cursor: 'pointer', fontSize: 14, color: '#2C2C2A', background: ins.id === value ? '#FBEAF0' : 'transparent' }}
+                      onMouseEnter={e => e.currentTarget.style.background = ins.id === value ? '#FBEAF0' : '#f9fafb'}
+                      onMouseLeave={e => e.currentTarget.style.background = ins.id === value ? '#FBEAF0' : 'transparent'}
+                    >
+                      {ins.nome}
+                      <span style={{ fontSize: 11, color: '#9ca3af', marginLeft: 6 }}>R$ {(ins.preco_unidade / ins.quantidade_por_unidade).toFixed(4)}/{ins.unidade_uso}</span>
+                    </div>
+                  ))}
+                </div>
+              ))
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Overlay para fechar */}
+      {aberto && <div onClick={() => setAberto(false)} style={{ position: 'fixed', inset: 0, zIndex: 998 }} />}
+    </div>
+  )
+}
+
 function ModalReceita({ receita, insumos, margemInicial = 40, onFechar, onSalvar }) {
   const [form, setForm] = useState({
     nome: receita?.nome || '',
@@ -163,16 +246,12 @@ function ModalReceita({ receita, insumos, margemInicial = 40, onFechar, onSalvar
               <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
                 {itens.map((item, idx) => (
                   <div key={idx} style={{ display: 'grid', gridTemplateColumns: '2fr 1fr auto', gap: 8, alignItems: 'center' }}>
-                    <select style={inputStyle} value={item.ingrediente_id} onChange={e => atualizarItem(idx, 'ingrediente_id', e.target.value)}>
-                      <option value="">Selecione o insumo...</option>
-                      {Object.entries(insumosPorCategoria).map(([cat, lista]) => lista.length > 0 && (
-                        <optgroup key={cat} label={`${CATEGORIA_EMOJI[cat]} ${cat.charAt(0).toUpperCase() + cat.slice(1)}s`}>
-                          {lista.map(ins => (
-                            <option key={ins.id} value={ins.id}>{ins.nome}</option>
-                          ))}
-                        </optgroup>
-                      ))}
-                    </select>
+                    <BuscaInsumo
+                      insumos={insumos}
+                      value={item.ingrediente_id}
+                      onChange={val => atualizarItem(idx, 'ingrediente_id', val)}
+                      inputStyle={inputStyle}
+                    />
                     <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
                       <input style={{ ...inputStyle, width: '70%' }} type="number" min="0" step="0.1" placeholder="Qtd"
                         value={item.quantidade} onChange={e => atualizarItem(idx, 'quantidade', e.target.value)} />

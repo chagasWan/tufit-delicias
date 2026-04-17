@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '../../lib/supabase'
-import { ShoppingBag, Clock, CheckCircle, Package, Truck, XCircle, Eye, MessageCircle, RefreshCw, Calendar } from 'lucide-react'
+import { ShoppingBag, Clock, CheckCircle, Package, Truck, XCircle, Eye, MessageCircle, RefreshCw, Calendar, Plus, Trash2, Search } from 'lucide-react'
 import toast from 'react-hot-toast'
 
 const STATUS = {
@@ -154,12 +154,350 @@ function ModalPedido({ pedido, onFechar, onAtualizarStatus }) {
   )
 }
 
+
+function ModalNovoPedido({ onFechar, onSalvar }) {
+  const [etapa, setEtapa] = useState(1) // 1: cliente, 2: itens, 3: data/hora
+  const [buscaCliente, setBuscaCliente] = useState('')
+  const [clienteEncontrado, setClienteEncontrado] = useState(null)
+  const [novoCliente, setNovoCliente] = useState({ nome: '', telefone: '' })
+  const [modoNovoCliente, setModoNovoCliente] = useState(false)
+  const [produtos, setProdutos] = useState([])
+  const [itensPedido, setItensPedido] = useState([])
+  const [dataRetirada, setDataRetirada] = useState('')
+  const [horaRetirada, setHoraRetirada] = useState('')
+  const [tipoEntrega, setTipoEntrega] = useState('retirada')
+  const [enderecoEntrega, setEnderecoEntrega] = useState('')
+  const [taxaEntrega, setTaxaEntrega] = useState('')
+  const [observacoes, setObservacoes] = useState('')
+  const [status, setStatus] = useState('confirmado')
+  const [salvando, setSalvando] = useState(false)
+
+  useEffect(() => {
+    supabase.from('produtos').select('id, nome, preco').eq('ativo', true).order('nome').then(({ data }) => {
+      setProdutos(data || [])
+    })
+  }, [])
+
+  async function buscarCliente() {
+    if (!buscaCliente.trim()) return
+    const tel = buscaCliente.replace(/\D/g, '')
+    const { data } = await supabase.from('clientes').select('*')
+      .or(`nome.ilike.%${buscaCliente}%,telefone.ilike.%${tel}%`)
+      .limit(1).single()
+    if (data) { setClienteEncontrado(data); setModoNovoCliente(false) }
+    else { toast.error('Cliente não encontrado. Cadastre um novo.'); setModoNovoCliente(true) }
+  }
+
+  function adicionarItem(produto) {
+    setItensPedido(prev => {
+      const existe = prev.find(i => i.produto_id === produto.id)
+      if (existe) return prev.map(i => i.produto_id === produto.id ? { ...i, quantidade: i.quantidade + 1 } : i)
+      return [...prev, { produto_id: produto.id, nome_produto: produto.nome, preco_unitario: produto.preco, quantidade: 1, observacao: '' }]
+    })
+  }
+
+  function removerItem(produtoId) {
+    setItensPedido(prev => prev.filter(i => i.produto_id !== produtoId))
+  }
+
+  function alterarQtd(produtoId, delta) {
+    setItensPedido(prev => prev.map(i => {
+      if (i.produto_id !== produtoId) return i
+      const novaQtd = i.quantidade + delta
+      return novaQtd <= 0 ? null : { ...i, quantidade: novaQtd }
+    }).filter(Boolean))
+  }
+
+  const subtotal = itensPedido.reduce((acc, i) => acc + i.preco_unitario * i.quantidade, 0)
+  const taxa = parseFloat(taxaEntrega) || 0
+  const total = subtotal + taxa
+
+  async function salvar() {
+    if (!dataRetirada) return toast.error('Escolha a data')
+    if (!horaRetirada) return toast.error('Escolha o horário')
+    if (itensPedido.length === 0) return toast.error('Adicione pelo menos um item')
+    const clienteNome = clienteEncontrado?.nome || novoCliente.nome
+    const clienteTel = clienteEncontrado?.telefone || novoCliente.telefone.replace(/\D/g, '')
+    if (!clienteNome.trim()) return toast.error('Informe o nome do cliente')
+
+    setSalvando(true)
+    try {
+      // Criar ou usar cliente
+      let clienteId = clienteEncontrado?.id
+      if (!clienteId) {
+        const { data: c, error: ec } = await supabase.from('clientes')
+          .insert({ nome: clienteNome.trim(), telefone: clienteTel }).select().single()
+        if (ec) throw ec
+        clienteId = c.id
+      }
+
+      // Criar pedido
+      const { data: pedido, error: ep } = await supabase.from('pedidos').insert({
+        cliente_id: clienteId,
+        data_retirada: dataRetirada,
+        hora_retirada: horaRetirada,
+        tipo_entrega: tipoEntrega,
+        endereco_entrega: tipoEntrega === 'entrega' ? enderecoEntrega : null,
+        taxa_entrega: taxa,
+        subtotal,
+        total,
+        observacoes: observacoes.trim() || null,
+        status,
+        forma_pagamento: 'pix',
+      }).select().single()
+      if (ep) throw ep
+
+      // Criar itens
+      await supabase.from('pedido_itens').insert(
+        itensPedido.map(i => ({
+          pedido_id: pedido.id,
+          produto_id: i.produto_id,
+          nome_produto: i.nome_produto,
+          preco_unitario: i.preco_unitario,
+          quantidade: i.quantidade,
+          subtotal: i.preco_unitario * i.quantidade,
+          observacao: i.observacao || null,
+        }))
+      )
+
+      toast.success('Pedido lançado com sucesso!')
+      onSalvar()
+    } catch (err) {
+      console.error(err)
+      toast.error('Erro ao salvar pedido')
+    }
+    setSalvando(false)
+  }
+
+  const inputStyle = { width: '100%', padding: '10px 14px', borderRadius: 10, border: '1.5px solid #e5e7eb', fontSize: 14, outline: 'none', boxSizing: 'border-box', fontFamily: 'Inter, sans-serif' }
+  const labelStyle = { fontSize: 13, color: '#6b7280', fontWeight: 500, display: 'block', marginBottom: 5 }
+
+  return (
+    <div style={{ position: 'fixed', inset: 0, zIndex: 300, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24 }}>
+      <div onClick={onFechar} style={{ position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.5)' }} />
+      <div style={{ position: 'relative', background: '#fff', borderRadius: 20, maxWidth: 580, width: '100%', maxHeight: '92vh', overflowY: 'auto', fontFamily: 'Inter, sans-serif', boxShadow: '0 20px 60px rgba(0,0,0,0.2)' }}>
+
+        {/* Header */}
+        <div style={{ padding: '24px 28px', borderBottom: '1px solid #f3f4f6', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <h2 style={{ margin: 0, fontSize: 18, fontWeight: 700, color: '#2C2C2A' }}>Lançar pedido manual</h2>
+          <div style={{ display: 'flex', gap: 8 }}>
+            {[1,2,3].map(e => (
+              <div key={e} style={{ width: 28, height: 28, borderRadius: '50%', background: etapa >= e ? '#D4537E' : '#f3f4f6', color: etapa >= e ? '#fff' : '#9ca3af', fontSize: 12, fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>{e}</div>
+            ))}
+          </div>
+        </div>
+
+        <div style={{ padding: 28 }}>
+
+          {/* Etapa 1: Cliente */}
+          {etapa === 1 && (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+              <p style={{ margin: 0, fontWeight: 600, color: '#2C2C2A' }}>1. Identificar o cliente</p>
+
+              {!clienteEncontrado && !modoNovoCliente && (
+                <div>
+                  <label style={labelStyle}>Buscar por nome ou telefone</label>
+                  <div style={{ display: 'flex', gap: 8 }}>
+                    <input style={{ ...inputStyle, flex: 1 }} value={buscaCliente}
+                      onChange={e => setBuscaCliente(e.target.value)}
+                      onKeyDown={e => e.key === 'Enter' && buscarCliente()}
+                      placeholder="Nome ou (62) 99999-9999" />
+                    <button onClick={buscarCliente} style={{ background: '#D4537E', color: '#fff', border: 'none', borderRadius: 10, padding: '0 16px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6, fontWeight: 600, whiteSpace: 'nowrap' }}>
+                      <Search size={14} /> Buscar
+                    </button>
+                  </div>
+                  <button onClick={() => setModoNovoCliente(true)} style={{ marginTop: 10, background: 'none', border: 'none', color: '#D4537E', cursor: 'pointer', fontSize: 13, fontWeight: 600 }}>
+                    + Cadastrar novo cliente
+                  </button>
+                </div>
+              )}
+
+              {clienteEncontrado && (
+                <div style={{ background: '#f0fdf4', borderRadius: 12, padding: 14, border: '1.5px solid #bbf7d0', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <div>
+                    <p style={{ margin: 0, fontWeight: 700, color: '#15803d' }}>✓ {clienteEncontrado.nome}</p>
+                    <p style={{ margin: '2px 0 0', fontSize: 13, color: '#6b7280' }}>{clienteEncontrado.telefone}</p>
+                  </div>
+                  <button onClick={() => { setClienteEncontrado(null); setBuscaCliente('') }} style={{ background: 'none', border: 'none', color: '#9ca3af', cursor: 'pointer', fontSize: 18 }}>✕</button>
+                </div>
+              )}
+
+              {modoNovoCliente && (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                  <div>
+                    <label style={labelStyle}>Nome do cliente *</label>
+                    <input style={inputStyle} value={novoCliente.nome} onChange={e => setNovoCliente(f => ({ ...f, nome: e.target.value }))} placeholder="Nome completo" />
+                  </div>
+                  <div>
+                    <label style={labelStyle}>Telefone / WhatsApp</label>
+                    <input style={inputStyle} value={novoCliente.telefone} onChange={e => setNovoCliente(f => ({ ...f, telefone: e.target.value }))} placeholder="(62) 99999-9999" />
+                  </div>
+                  <button onClick={() => { setModoNovoCliente(false); setBuscaCliente('') }} style={{ background: 'none', border: 'none', color: '#9ca3af', cursor: 'pointer', fontSize: 13, textAlign: 'left' }}>
+                    ← Buscar cliente existente
+                  </button>
+                </div>
+              )}
+
+              <div style={{ display: 'flex', gap: 10, marginTop: 8 }}>
+                <button onClick={onFechar} style={{ flex: 1, background: 'transparent', color: '#6b7280', padding: '12px', borderRadius: 24, border: '1.5px solid #e5e7eb', cursor: 'pointer', fontWeight: 500 }}>Cancelar</button>
+                <button onClick={() => setEtapa(2)}
+                  disabled={!clienteEncontrado && !novoCliente.nome.trim()}
+                  style={{ flex: 2, background: (!clienteEncontrado && !novoCliente.nome.trim()) ? '#f9a8d4' : '#D4537E', color: '#fff', padding: '12px', borderRadius: 24, border: 'none', cursor: 'pointer', fontWeight: 600 }}>
+                  Próximo →
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* Etapa 2: Produtos */}
+          {etapa === 2 && (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+              <p style={{ margin: 0, fontWeight: 600, color: '#2C2C2A' }}>2. Adicionar produtos</p>
+
+              {/* Lista de produtos */}
+              <div style={{ maxHeight: 220, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 6, border: '1px solid #f3f4f6', borderRadius: 12, padding: 10 }}>
+                {produtos.map(p => (
+                  <div key={p.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 10px', borderRadius: 8, background: itensPedido.find(i => i.produto_id === p.id) ? '#FBEAF0' : '#f9fafb' }}>
+                    <div>
+                      <span style={{ fontSize: 14, fontWeight: 500, color: '#2C2C2A' }}>{p.nome}</span>
+                      <span style={{ fontSize: 13, color: '#D4537E', marginLeft: 8, fontWeight: 600 }}>R$ {p.preco?.toFixed(2).replace('.', ',')}</span>
+                    </div>
+                    <button onClick={() => adicionarItem(p)} style={{ background: '#D4537E', color: '#fff', border: 'none', borderRadius: 8, padding: '4px 12px', cursor: 'pointer', fontSize: 13, fontWeight: 600 }}>
+                      + Add
+                    </button>
+                  </div>
+                ))}
+              </div>
+
+              {/* Itens selecionados */}
+              {itensPedido.length > 0 && (
+                <div style={{ background: '#f9fafb', borderRadius: 12, padding: 12 }}>
+                  <p style={{ margin: '0 0 8px', fontSize: 13, fontWeight: 600, color: '#6b7280' }}>Itens do pedido:</p>
+                  {itensPedido.map(item => (
+                    <div key={item.produto_id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '6px 0', borderBottom: '1px solid #f3f4f6' }}>
+                      <span style={{ fontSize: 14, color: '#2C2C2A', flex: 1 }}>{item.nome_produto}</span>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                        <button onClick={() => alterarQtd(item.produto_id, -1)} style={{ width: 24, height: 24, borderRadius: '50%', border: '1px solid #e5e7eb', background: '#fff', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 16, color: '#6b7280' }}>−</button>
+                        <span style={{ fontSize: 14, fontWeight: 600, minWidth: 20, textAlign: 'center' }}>{item.quantidade}</span>
+                        <button onClick={() => alterarQtd(item.produto_id, 1)} style={{ width: 24, height: 24, borderRadius: '50%', border: '1px solid #e5e7eb', background: '#fff', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 16, color: '#6b7280' }}>+</button>
+                        <span style={{ fontSize: 13, color: '#D4537E', fontWeight: 600, minWidth: 60, textAlign: 'right' }}>R$ {(item.preco_unitario * item.quantidade).toFixed(2).replace('.', ',')}</span>
+                        <button onClick={() => removerItem(item.produto_id)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#ef4444', padding: 2 }}><Trash2 size={14} /></button>
+                      </div>
+                    </div>
+                  ))}
+                  <div style={{ display: 'flex', justifyContent: 'space-between', paddingTop: 10, fontWeight: 700, color: '#2C2C2A' }}>
+                    <span>Subtotal</span>
+                    <span style={{ color: '#D4537E' }}>R$ {subtotal.toFixed(2).replace('.', ',')}</span>
+                  </div>
+                </div>
+              )}
+
+              <div style={{ display: 'flex', gap: 10 }}>
+                <button onClick={() => setEtapa(1)} style={{ flex: 1, background: 'transparent', color: '#6b7280', padding: '12px', borderRadius: 24, border: '1.5px solid #e5e7eb', cursor: 'pointer', fontWeight: 500 }}>← Voltar</button>
+                <button onClick={() => setEtapa(3)} disabled={itensPedido.length === 0}
+                  style={{ flex: 2, background: itensPedido.length === 0 ? '#f9a8d4' : '#D4537E', color: '#fff', padding: '12px', borderRadius: 24, border: 'none', cursor: 'pointer', fontWeight: 600 }}>
+                  Próximo →
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* Etapa 3: Data, hora e detalhes */}
+          {etapa === 3 && (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+              <p style={{ margin: 0, fontWeight: 600, color: '#2C2C2A' }}>3. Data, horário e detalhes</p>
+
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+                <div>
+                  <label style={labelStyle}>Data *</label>
+                  <input style={inputStyle} type="date" value={dataRetirada} onChange={e => setDataRetirada(e.target.value)} />
+                </div>
+                <div>
+                  <label style={labelStyle}>Horário *</label>
+                  <input style={inputStyle} type="time" value={horaRetirada} onChange={e => setHoraRetirada(e.target.value)} />
+                </div>
+              </div>
+
+              <div>
+                <label style={labelStyle}>Tipo de entrega</label>
+                <div style={{ display: 'flex', gap: 8 }}>
+                  {[{v:'retirada',l:'🏠 Retirada no local'},{v:'entrega',l:'🚗 Entrega em casa'}].map(op => (
+                    <button key={op.v} onClick={() => setTipoEntrega(op.v)}
+                      style={{ flex: 1, padding: '10px', borderRadius: 10, border: tipoEntrega === op.v ? '2px solid #D4537E' : '1.5px solid #e5e7eb', background: tipoEntrega === op.v ? '#FBEAF0' : '#fff', cursor: 'pointer', fontSize: 13, fontWeight: tipoEntrega === op.v ? 700 : 400, color: tipoEntrega === op.v ? '#D4537E' : '#6b7280' }}>
+                      {op.l}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {tipoEntrega === 'entrega' && (
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+                  <div style={{ gridColumn: '1 / -1' }}>
+                    <label style={labelStyle}>Endereço de entrega</label>
+                    <input style={inputStyle} value={enderecoEntrega} onChange={e => setEnderecoEntrega(e.target.value)} placeholder="Rua, número, bairro" />
+                  </div>
+                  <div>
+                    <label style={labelStyle}>Taxa de entrega (R$)</label>
+                    <input style={inputStyle} type="number" step="0.01" value={taxaEntrega} onChange={e => setTaxaEntrega(e.target.value)} placeholder="0,00" />
+                  </div>
+                </div>
+              )}
+
+              <div>
+                <label style={labelStyle}>Status inicial</label>
+                <select style={inputStyle} value={status} onChange={e => setStatus(e.target.value)}>
+                  <option value="novo">Novo</option>
+                  <option value="confirmado">Confirmado</option>
+                  <option value="producao">Em produção</option>
+                  <option value="pronto">Pronto</option>
+                </select>
+              </div>
+
+              <div>
+                <label style={labelStyle}>Observações</label>
+                <textarea style={{ ...inputStyle, resize: 'vertical' }} rows={2} value={observacoes} onChange={e => setObservacoes(e.target.value)} placeholder="Pedido especial, personalização..." />
+              </div>
+
+              {/* Resumo final */}
+              <div style={{ background: '#FBEAF0', borderRadius: 12, padding: 14 }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
+                  <span style={{ fontSize: 13, color: '#6b7280' }}>Subtotal</span>
+                  <span style={{ fontSize: 13, color: '#6b7280' }}>R$ {subtotal.toFixed(2).replace('.', ',')}</span>
+                </div>
+                {taxa > 0 && (
+                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
+                    <span style={{ fontSize: 13, color: '#6b7280' }}>Frete</span>
+                    <span style={{ fontSize: 13, color: '#6b7280' }}>R$ {taxa.toFixed(2).replace('.', ',')}</span>
+                  </div>
+                )}
+                <div style={{ display: 'flex', justifyContent: 'space-between', borderTop: '1px solid #f9a8d4', paddingTop: 8, marginTop: 4 }}>
+                  <span style={{ fontWeight: 700, color: '#D4537E' }}>Total</span>
+                  <span style={{ fontWeight: 800, color: '#D4537E', fontSize: 18 }}>R$ {total.toFixed(2).replace('.', ',')}</span>
+                </div>
+              </div>
+
+              <div style={{ display: 'flex', gap: 10 }}>
+                <button onClick={() => setEtapa(2)} style={{ flex: 1, background: 'transparent', color: '#6b7280', padding: '12px', borderRadius: 24, border: '1.5px solid #e5e7eb', cursor: 'pointer', fontWeight: 500 }}>← Voltar</button>
+                <button onClick={salvar} disabled={salvando}
+                  style={{ flex: 2, background: salvando ? '#f9a8d4' : '#D4537E', color: '#fff', padding: '12px', borderRadius: 24, border: 'none', cursor: 'pointer', fontWeight: 600 }}>
+                  {salvando ? 'Salvando...' : '✓ Lançar pedido'}
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  )
+}
+
 export default function AdminPedidos() {
   const [pedidos, setPedidos] = useState([])
   const [loading, setLoading] = useState(true)
   const [filtroStatus, setFiltroStatus] = useState('todos')
   const [pedidoSelecionado, setPedidoSelecionado] = useState(null)
   const [atualizando, setAtualizando] = useState(false)
+  const [modalNovoPedido, setModalNovoPedido] = useState(false)
 
   useEffect(() => {
     buscarPedidos()
@@ -224,6 +562,7 @@ export default function AdminPedidos() {
 
   return (
     <div style={{ fontFamily: 'Inter, sans-serif' }}>
+      {modalNovoPedido && <ModalNovoPedido onFechar={() => setModalNovoPedido(false)} onSalvar={() => { setModalNovoPedido(false); buscarPedidos() }} />}
       {pedidoSelecionado && (
         <ModalPedido
           pedido={pedidoSelecionado}
@@ -237,6 +576,12 @@ export default function AdminPedidos() {
           <h1 style={{ fontSize: 24, fontWeight: 800, color: '#2C2C2A', margin: 0 }}>Pedidos</h1>
           <p style={{ color: '#9ca3af', fontSize: 14, margin: '4px 0 0' }}>{pedidos.length} pedidos no total</p>
         </div>
+        <button
+          onClick={() => setModalNovoPedido(true)}
+          style={{ display: 'flex', alignItems: 'center', gap: 6, background: '#D4537E', color: '#fff', border: 'none', borderRadius: 10, padding: '8px 16px', cursor: 'pointer', fontSize: 13, fontWeight: 600 }}
+        >
+          <Plus size={16} /> Lançar pedido
+        </button>
         <button
           onClick={buscarPedidos}
           disabled={atualizando}
