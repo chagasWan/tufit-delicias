@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '../../lib/supabase'
-import { Plus, Edit2, Trash2, X, AlertTriangle, Package } from 'lucide-react'
+import { Plus, Edit2, Trash2, X, AlertTriangle, Package, Search } from 'lucide-react'
 import toast from 'react-hot-toast'
 
 const inputStyle = { width: '100%', padding: '10px 14px', borderRadius: 10, border: '1.5px solid #e5e7eb', fontSize: 14, outline: 'none', boxSizing: 'border-box', fontFamily: 'Inter, sans-serif' }
@@ -172,6 +172,7 @@ export default function AdminInsumos() {
   const [modal, setModal] = useState(false)
   const [editando, setEditando] = useState(null)
   const [categoriaFiltro, setCategoriaFiltro] = useState('todos')
+  const [busca, setBusca] = useState('')
 
   useEffect(() => { buscar() }, [])
 
@@ -190,7 +191,9 @@ export default function AdminInsumos() {
   }
 
   const alertas = insumos.filter(i => i.estoque_atual <= i.estoque_minimo && i.estoque_minimo > 0)
-  const filtrados = categoriaFiltro === 'todos' ? insumos : insumos.filter(i => i.categoria === categoriaFiltro)
+  const filtrados = insumos
+    .filter(i => categoriaFiltro === 'todos' || i.categoria === categoriaFiltro)
+    .filter(i => !busca.trim() || i.nome.toLowerCase().includes(busca.toLowerCase()))
 
   const contadores = {
     todos: insumos.length,
@@ -218,6 +221,20 @@ export default function AdminInsumos() {
           style={{ background: '#D4537E', color: '#fff', padding: '12px 20px', borderRadius: 24, border: 'none', cursor: 'pointer', fontWeight: 600, fontSize: 14, display: 'flex', alignItems: 'center', gap: 8 }}>
           <Plus size={18} /> Novo insumo
         </button>
+      </div>
+
+      {/* Campo de busca */}
+      <div style={{ position: 'relative', marginBottom: 16 }}>
+        <Search size={16} style={{ position: 'absolute', left: 14, top: '50%', transform: 'translateY(-50%)', color: '#9ca3af', pointerEvents: 'none' }} />
+        <input
+          value={busca}
+          onChange={e => setBusca(e.target.value)}
+          placeholder="Buscar insumo..."
+          style={{ width: '100%', padding: '10px 14px 10px 40px', borderRadius: 12, border: '1.5px solid #e5e7eb', fontSize: 14, outline: 'none', boxSizing: 'border-box', fontFamily: 'Inter, sans-serif' }}
+        />
+        {busca && (
+          <button onClick={() => setBusca('')} style={{ position: 'absolute', right: 12, top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer', color: '#9ca3af', fontSize: 18, lineHeight: 1 }}>✕</button>
+        )}
       </div>
 
       {/* Alerta de estoque */}
