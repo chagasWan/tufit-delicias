@@ -104,6 +104,8 @@ function ModalReceita({ receita, insumos, margemInicial = 40, onFechar, onSalvar
   const [itens, setItens] = useState([])
   const [salvando, setSalvando] = useState(false)
   const [margem, setMargem] = useState(margemInicial)
+  const [taxasIfood, setTaxasIfood] = useState({ comissao: 27, pagamento: 2.5, embalagem: 0 })
+  const [mostrarIfood, setMostrarIfood] = useState(false)
 
   useEffect(() => {
     if (receita?.id) {
@@ -145,6 +147,9 @@ function ModalReceita({ receita, insumos, margemInicial = 40, onFechar, onSalvar
 
   const custoPorUnidade = form.rendimento > 0 ? custoTotal / parseFloat(form.rendimento) : 0
   const precoSugerido = custoPorUnidade / (1 - margem / 100)
+  const taxaTotalIfood = (taxasIfood.comissao + taxasIfood.pagamento) / 100
+  const custoComEmbalagemIfood = custoPorUnidade + (taxasIfood.embalagem || 0)
+  const precoSugeridoIfood = custoComEmbalagemIfood / (1 - taxaTotalIfood) / (1 - margem / 100)
 
   async function handleSalvar() {
     if (!form.nome.trim()) return toast.error('Digite o nome da receita')
@@ -292,6 +297,51 @@ function ModalReceita({ receita, insumos, margemInicial = 40, onFechar, onSalvar
                 <input type="range" min="10" max="80" step="5" value={margem} onChange={e => setMargem(parseInt(e.target.value))} style={{ flex: 1 }} />
                 <span style={{ fontSize: 13, fontWeight: 600, color: '#D4537E', minWidth: 36 }}>{margem}%</span>
               </div>
+
+              {/* Simulação iFood */}
+              <div style={{ marginTop: 12, borderTop: '1px solid #bbf7d0', paddingTop: 12 }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', cursor: 'pointer', marginBottom: mostrarIfood ? 10 : 0 }} onClick={() => setMostrarIfood(v => !v)}>
+                  <span style={{ fontSize: 13, fontWeight: 600, color: '#c2410c' }}>🛵 Simular no iFood</span>
+                  <span style={{ fontSize: 11, color: '#9ca3af' }}>{mostrarIfood ? '▲ Ocultar' : '▼ Ver'}</span>
+                </div>
+                {mostrarIfood && (
+                  <div>
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 8, marginBottom: 10 }}>
+                      <div>
+                        <label style={{ fontSize: 11, color: '#6b7280', display: 'block', marginBottom: 3 }}>Comissão (%)</label>
+                        <input type="number" step="0.1" min="0" max="40" value={taxasIfood.comissao}
+                          onChange={e => setTaxasIfood(t => ({ ...t, comissao: parseFloat(e.target.value) || 0 }))}
+                          style={{ width: '100%', padding: '6px 10px', borderRadius: 8, border: '1.5px solid #fed7aa', fontSize: 13, outline: 'none', boxSizing: 'border-box' }} />
+                        <p style={{ fontSize: 10, color: '#9ca3af', margin: '2px 0 0' }}>Padrão: 27%</p>
+                      </div>
+                      <div>
+                        <label style={{ fontSize: 11, color: '#6b7280', display: 'block', marginBottom: 3 }}>Tx. pagamento (%)</label>
+                        <input type="number" step="0.1" min="0" max="10" value={taxasIfood.pagamento}
+                          onChange={e => setTaxasIfood(t => ({ ...t, pagamento: parseFloat(e.target.value) || 0 }))}
+                          style={{ width: '100%', padding: '6px 10px', borderRadius: 8, border: '1.5px solid #fed7aa', fontSize: 13, outline: 'none', boxSizing: 'border-box' }} />
+                        <p style={{ fontSize: 10, color: '#9ca3af', margin: '2px 0 0' }}>Padrão: 2,5%</p>
+                      </div>
+                      <div>
+                        <label style={{ fontSize: 11, color: '#6b7280', display: 'block', marginBottom: 3 }}>Embalagem (R$)</label>
+                        <input type="number" step="0.01" min="0" value={taxasIfood.embalagem}
+                          onChange={e => setTaxasIfood(t => ({ ...t, embalagem: parseFloat(e.target.value) || 0 }))}
+                          style={{ width: '100%', padding: '6px 10px', borderRadius: 8, border: '1.5px solid #fed7aa', fontSize: 13, outline: 'none', boxSizing: 'border-box' }} />
+                        <p style={{ fontSize: 10, color: '#9ca3af', margin: '2px 0 0' }}>Isopor, sacola...</p>
+                      </div>
+                    </div>
+                    <div style={{ background: '#fff7ed', borderRadius: 10, padding: '10px 12px', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+                      <div style={{ textAlign: 'center' }}>
+                        <p style={{ fontSize: 16, fontWeight: 800, color: '#c2410c', margin: '0 0 2px' }}>R$ {precoSugeridoIfood.toFixed(2).replace('.', ',')}</p>
+                        <p style={{ fontSize: 11, color: '#6b7280', margin: 0 }}>Preço sugerido iFood ({margem}% margem)</p>
+                      </div>
+                      <div style={{ textAlign: 'center' }}>
+                        <p style={{ fontSize: 16, fontWeight: 800, color: '#c2410c', margin: '0 0 2px' }}>{(taxasIfood.comissao + taxasIfood.pagamento).toFixed(1)}%</p>
+                        <p style={{ fontSize: 11, color: '#6b7280', margin: 0 }}>Total de taxas iFood</p>
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
             </div>
           )}
 
@@ -322,6 +372,8 @@ export default function AdminReceitas() {
   const [editandoReceita, setEditandoReceita] = useState(null)
   const [expandido, setExpandido] = useState(null)
   const [margemPadrao, setMargemPadrao] = useState(40)
+  const [taxasIfoodLista, setTaxasIfoodLista] = useState({ comissao: 27, pagamento: 2.5, embalagem: 0 })
+  const [mostrarIfoodLista, setMostrarIfoodLista] = useState(false)
 
   useEffect(() => { buscarDados() }, [])
 
@@ -394,6 +446,45 @@ export default function AdminReceitas() {
           </button>
         </div>
       ) : (
+        <>
+        {/* Painel iFood na listagem */}
+        <div style={{ background: '#fff', borderRadius: 12, border: '1px solid #fed7aa', marginBottom: 14, overflow: 'hidden' }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 16px', cursor: 'pointer', background: mostrarIfoodLista ? '#fff7ed' : '#fff' }} onClick={() => setMostrarIfoodLista(v => !v)}>
+            <span style={{ fontWeight: 600, color: '#c2410c', fontSize: 13, display: 'flex', alignItems: 'center', gap: 6 }}>🛵 Simulação iFood <span style={{ fontWeight: 400, color: '#9ca3af', fontSize: 12 }}>— ver preço sugerido com taxas da plataforma</span></span>
+            <span style={{ fontSize: 11, color: '#9ca3af' }}>{mostrarIfoodLista ? '▲ Ocultar' : '▼ Configurar'}</span>
+          </div>
+          {mostrarIfoodLista && (
+            <div style={{ padding: '0 16px 14px', borderTop: '1px solid #fed7aa' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 10, marginTop: 12 }}>
+                <div>
+                  <label style={{ fontSize: 12, color: '#6b7280', fontWeight: 500, display: 'block', marginBottom: 4 }}>Comissão iFood (%)</label>
+                  <input type="number" step="0.1" min="0" max="40" value={taxasIfoodLista.comissao}
+                    onChange={e => setTaxasIfoodLista(t => ({ ...t, comissao: parseFloat(e.target.value) || 0 }))}
+                    style={{ width: '100%', padding: '7px 10px', borderRadius: 8, border: '1.5px solid #fed7aa', fontSize: 13, outline: 'none', boxSizing: 'border-box' }} />
+                  <p style={{ fontSize: 11, color: '#9ca3af', margin: '2px 0 0' }}>Padrão: 27%</p>
+                </div>
+                <div>
+                  <label style={{ fontSize: 12, color: '#6b7280', fontWeight: 500, display: 'block', marginBottom: 4 }}>Taxa de pagamento (%)</label>
+                  <input type="number" step="0.1" min="0" max="10" value={taxasIfoodLista.pagamento}
+                    onChange={e => setTaxasIfoodLista(t => ({ ...t, pagamento: parseFloat(e.target.value) || 0 }))}
+                    style={{ width: '100%', padding: '7px 10px', borderRadius: 8, border: '1.5px solid #fed7aa', fontSize: 13, outline: 'none', boxSizing: 'border-box' }} />
+                  <p style={{ fontSize: 11, color: '#9ca3af', margin: '2px 0 0' }}>Padrão: 2,5%</p>
+                </div>
+                <div>
+                  <label style={{ fontSize: 12, color: '#6b7280', fontWeight: 500, display: 'block', marginBottom: 4 }}>Embalagem extra (R$)</label>
+                  <input type="number" step="0.01" min="0" value={taxasIfoodLista.embalagem}
+                    onChange={e => setTaxasIfoodLista(t => ({ ...t, embalagem: parseFloat(e.target.value) || 0 }))}
+                    style={{ width: '100%', padding: '7px 10px', borderRadius: 8, border: '1.5px solid #fed7aa', fontSize: 13, outline: 'none', boxSizing: 'border-box' }} />
+                  <p style={{ fontSize: 11, color: '#9ca3af', margin: '2px 0 0' }}>Isopor, sacola, etc.</p>
+                </div>
+              </div>
+              <div style={{ marginTop: 10, padding: '8px 12px', background: '#fff7ed', borderRadius: 8, fontSize: 12, color: '#92400e' }}>
+                <strong>Total de taxas: {(taxasIfoodLista.comissao + taxasIfoodLista.pagamento).toFixed(1)}%</strong> — para cada R$ 100 vendidos, o iFood retém R$ {(taxasIfoodLista.comissao + taxasIfoodLista.pagamento).toFixed(2)} e você recebe R$ {(100 - taxasIfoodLista.comissao - taxasIfoodLista.pagamento).toFixed(2)}.
+              </div>
+            </div>
+          )}
+        </div>
+
         <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
           {receitas.map(rec => {
             const custo = calcularCusto(rec)
@@ -416,6 +507,12 @@ export default function AdminReceitas() {
                         <span style={{ fontSize: 13, color: '#6b7280' }}>Custo total: <strong>R$ {custo.toFixed(2).replace('.', ',')}</strong></span>
                         <span style={{ fontSize: 13, color: '#6b7280' }}>Por unidade: <strong>R$ {custoPorUnidade.toFixed(2).replace('.', ',')}</strong></span>
                         <span style={{ fontSize: 13, color: '#D4537E', fontWeight: 600 }}>Vender por ({margemPadrao}% margem): R$ {precoSugerido.toFixed(2).replace('.', ',')}+</span>
+                        {mostrarIfoodLista && (() => {
+                          const taxaTotal = (taxasIfoodLista.comissao + taxasIfoodLista.pagamento) / 100
+                          const custoComEmb = custoPorUnidade + (taxasIfoodLista.embalagem || 0)
+                          const precoIfood = custoComEmb / (1 - taxaTotal) / (1 - margemPadrao / 100)
+                          return <span style={{ fontSize: 13, color: '#c2410c', fontWeight: 600 }}>🛵 iFood ({margemPadrao}% margem): R$ {precoIfood.toFixed(2).replace('.', ',')}+</span>
+                        })()}
                       </>}
                     </div>
                   </div>
@@ -456,6 +553,7 @@ export default function AdminReceitas() {
             )
           })}
         </div>
+        </>
       )}
     </div>
   )
