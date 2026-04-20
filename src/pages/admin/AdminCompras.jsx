@@ -20,65 +20,85 @@ export default function AdminCompras() {
   async function calcularLista() {
     setCarregando(true)
     try {
-      // 1. Buscar pedidos pendentes com itens
+      // 1. Buscar pedidos pendentes com itens (incluindo produto_id)
       const { data: pedidos, error: errPedidos } = await supabase
         .from('pedidos')
-        .select('id, data_retirada, pedido_itens ( nome_produto, quantidade )')
+        .select('id, data_retirada, pedido_itens ( nome_produto, quantidade, produto_id )')
         .in('status', STATUS_PENDENTES)
         .order('data_retirada')
 
       if (errPedidos) throw errPedidos
-
       setTotalPedidos(pedidos?.length || 0)
 
-      // 2. Consolidar quantidade por produto
-      const qtdPorProduto = {}
+      // 2. Consolidar quantidade por produto_id (e nome como fallback)
+      const qtdPorProdutoId = {}
+      const qtdPorNome = {}
       ;(pedidos || []).forEach(pedido => {
         ;(pedido.pedido_itens || []).forEach(item => {
-          if (!qtdPorProduto[item.nome_produto]) qtdPorProduto[item.nome_produto] = 0
-          qtdPorProduto[item.nome_produto] += item.quantidade
+          if (item.produto_id) {
+            if (!qtdPorProdutoId[item.produto_id]) qtdPorProdutoId[item.produto_id] = { nome: item.nome_produto, quantidade: 0 }
+            qtdPorProdutoId[item.produto_id].quantidade += item.quantidade
+          } else {
+            // Pedidos antigos sem produto_id — fallback por nome
+            if (!qtdPorNome[item.nome_produto]) qtdPorNome[item.nome_produto] = 0
+            qtdPorNome[item.nome_produto] += item.quantidade
+          }
         })
       })
 
-      if (Object.keys(qtdPorProduto).length === 0) {
+      if (Object.keys(qtdPorProdutoId).length === 0 && Object.keys(qtdPorNome).length === 0) {
         setListaCompras([])
         setSemReceita([])
         setCarregando(false)
         return
       }
 
-      // 3. Buscar receitas pelo nome do produto
-      const nomesProdutos = Object.keys(qtdPorProduto)
-      const { data: receitas, error: errReceitas } = await supabase
-        .from('receitas')
-        .select('id, nome, rendimento, unidade_rendimento, receita_ingredientes ( quantidade, ingredientes ( id, nome, unidade_uso, unidade_compra, quantidade_por_unidade, preco_unidade, estoque_atual ) )')
-        .in('nome', nomesProdutos)
+      // 3. Buscar produtos com receita_id vinculada
+      const produtoIds = Object.keys(qtdPorProdutoId)
+      const { data: produtos } = produtoIds.length > 0
+        ? await supabase.from('produtos').select('id, nome, receita_id').in('id', produtoIds)
+        : { data: [] }
 
-      // 4. Buscar também por nome de produto na tabela produtos -> receita_id (caso futuro)
-      // Por ora, match por nome da receita === nome do produto
+      // 4. Coletar todos os receita_ids necessários
+      const receitaIds = (produtos || []).map(p => p.receita_id).filter(Boolean)
 
-      const receitasPorNome = {}
-      ;(receitas || []).forEach(r => { receitasPorNome[r.nome] = r })
+      // 5. Buscar receitas por ID (vinculação direta) e por nome (fallback)
+      const nomesFallback = Object.keys(qtdPorNome)
+      const { data: receitasPorId } = receitaIds.length > 0
+        ? await supabase.from('receitas').select('id, nome, rendimento, receita_ingredientes ( quantidade, ingredientes ( id, nome, unidade_uso, unidade_compra, quantidade_por_unidade, preco_unidade, estoque_atual ) )').in('id', receitaIds)
+        : { data: [] }
 
-      // 5. Identificar produtos sem receita cadastrada
-      const semReceitaList = nomesProdutos.filter(n => !receitasPorNome[n])
-      setSemReceita(semReceitaList.map(n => ({ nome: n, quantidade: qtdPorProduto[n] })))
+      const { data: receitasPorNome } = nomesFallback.length > 0
+        ? await supabase.from('receitas').select('id, nome, rendimento, receita_ingredientes ( quantidade, ingredientes ( id, nome, unidade_uso, unidade_compra, quantidade_por_unidade, preco_unidade, estoque_atual ) )').in('nome', nomesFallback)
+        : { data: [] }
 
-      // 6. Calcular ingredientes necessários
+      const receitaMapId = {}
+      ;(receitasPorId || []).forEach(r => { receitaMapId[r.id] = r })
+
+      const receitaMapNome = {}
+      ;(receitasPorNome || []).forEach(r => { receitaMapNome[r.nome] = r })
+
+      // 6. Identificar sem receita
+      const semReceitaList = []
+      ;(produtos || []).forEach(p => {
+        if (!p.receita_id && !receitaMapNome[p.nome]) {
+          semReceitaList.push({ nome: p.nome, quantidade: qtdPorProdutoId[p.id]?.quantidade || 0 })
+        }
+      })
+      nomesFallback.forEach(nome => {
+        if (!receitaMapNome[nome]) semReceitaList.push({ nome, quantidade: qtdPorNome[nome] })
+      })
+      setSemReceita(semReceitaList)
+
+      // 7. Calcular ingredientes necessários
       const ingredientesMap = {}
 
-      nomesProdutos.forEach(nomeProduto => {
-        const receita = receitasPorNome[nomeProduto]
-        if (!receita) return
-
-        const qtdPedida = qtdPorProduto[nomeProduto]
+      function processarReceita(receita, nomeProduto, qtdPedida) {
         const fator = qtdPedida / (receita.rendimento || 1)
-
         ;(receita.receita_ingredientes || []).forEach(ri => {
           const ing = ri.ingredientes
           if (!ing) return
           const qtdNecessaria = ri.quantidade * fator
-
           if (!ingredientesMap[ing.id]) {
             ingredientesMap[ing.id] = {
               id: ing.id,
@@ -88,19 +108,26 @@ export default function AdminCompras() {
               quantidade_por_unidade: ing.quantidade_por_unidade,
               preco_unidade: ing.preco_unidade,
               estoque_atual: (ing.estoque_atual || 0) * (ing.quantidade_por_unidade || 1),
-              estoque_atual_compra: ing.estoque_atual || 0,
               necessario: 0,
               produtos: [],
             }
           }
-
           ingredientesMap[ing.id].necessario += qtdNecessaria
-          ingredientesMap[ing.id].produtos.push({
-            produto: nomeProduto,
-            qtdProduto: qtdPedida,
-            qtdIngrediente: qtdNecessaria,
-          })
+          ingredientesMap[ing.id].produtos.push({ produto: nomeProduto, qtdProduto: qtdPedida, qtdIngrediente: qtdNecessaria })
         })
+      }
+
+      // Processar por produto_id (vinculação direta — mais confiável)
+      ;(produtos || []).forEach(p => {
+        const qtdPedida = qtdPorProdutoId[p.id]?.quantidade || 0
+        const receita = p.receita_id ? receitaMapId[p.receita_id] : receitaMapNome[p.nome]
+        if (receita) processarReceita(receita, p.nome, qtdPedida)
+      })
+
+      // Processar fallback por nome
+      nomesFallback.forEach(nome => {
+        const receita = receitaMapNome[nome]
+        if (receita) processarReceita(receita, nome, qtdPorNome[nome])
       })
 
       // 7. Calcular o que falta comprar

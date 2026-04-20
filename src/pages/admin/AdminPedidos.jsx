@@ -514,7 +514,7 @@ export default function AdminPedidos() {
   async function buscarPedidos() {
     const { data } = await supabase
       .from('pedidos')
-      .select('*, clientes(nome, telefone)')
+      .select('*, clientes(nome, telefone), pedido_itens(produto_id, nome_produto, quantidade)')
       .order('created_at', { ascending: false })
     setPedidos(data || [])
     setLoading(false)
@@ -528,6 +528,37 @@ export default function AdminPedidos() {
     } else {
       toast.success('Status atualizado!')
       buscarPedidos()
+
+      // Ao iniciar produção, descontar estoque dos insumos
+      if (novoStatus === 'producao') {
+        try {
+          const pedido = pedidos.find(p => p.id === pedidoId)
+          const itens = pedido?.pedido_itens || []
+
+          for (const item of itens) {
+            if (!item.produto_id) continue
+            const { data: produto } = await supabase.from('produtos').select('receita_id, nome').eq('id', item.produto_id).single()
+            if (!produto?.receita_id) continue
+
+            const { data: receita } = await supabase.from('receitas')
+              .select('rendimento, receita_ingredientes(quantidade, ingrediente_id, ingredientes(estoque_atual, quantidade_por_unidade))')
+              .eq('id', produto.receita_id).single()
+            if (!receita) continue
+
+            const fator = item.quantidade / (receita.rendimento || 1)
+            for (const ri of receita.receita_ingredientes || []) {
+              const ing = ri.ingredientes
+              if (!ing) continue
+              const qtdUsadaEmUso = ri.quantidade * fator
+              const qtdUsadaEmCompra = qtdUsadaEmUso / (ing.quantidade_por_unidade || 1)
+              const novoEstoque = Math.max(0, (ing.estoque_atual || 0) - qtdUsadaEmCompra)
+              await supabase.from('ingredientes').update({ estoque_atual: novoEstoque }).eq('id', ri.ingrediente_id)
+            }
+          }
+        } catch (err) {
+          console.error('Erro ao descontar estoque:', err)
+        }
+      }
 
       // Quando marcar como entregue, oferecer envio do link de avaliação
       if (novoStatus === 'entregue') {

@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '../../lib/supabase'
 import { Plus, Edit2, Trash2, X, ChevronDown, ChevronUp, BookOpen } from 'lucide-react'
+import { LabelComDica } from '../../components/Tooltip'
 import toast from 'react-hot-toast'
 
 const inputStyle = { width: '100%', padding: '10px 14px', borderRadius: 10, border: '1.5px solid #e5e7eb', fontSize: 14, outline: 'none', boxSizing: 'border-box', fontFamily: 'Inter, sans-serif' }
@@ -209,22 +210,22 @@ function ModalReceita({ receita, insumos, margemInicial = 40, onFechar, onSalvar
 
         <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
           <div>
-            <label style={labelStyle}>Nome da receita *</label>
+            <LabelComDica dica="Use o mesmo nome que vai usar no produto. Ex: Brigadeiro Fit de Cacau. Isso facilita a vinculação e o cálculo de custos." obrigatorio>Nome da receita</LabelComDica>
             <input style={inputStyle} value={form.nome} onChange={e => setForm(f => ({...f, nome: e.target.value}))} placeholder="Ex: Brigadeiro Fit de Cacau" />
           </div>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 12 }}>
             <div>
-              <label style={labelStyle}>Rendimento</label>
+              <LabelComDica dica="Quantas unidades essa receita produz no total. Ex: se faz 30 brigadeiros, coloque 30. Se faz 1 bolo inteiro, coloque 1.">Rendimento</LabelComDica>
               <input style={inputStyle} type="number" min="1" value={form.rendimento} onChange={e => setForm(f => ({...f, rendimento: e.target.value}))} />
             </div>
             <div>
-              <label style={labelStyle}>Unidade</label>
+              <LabelComDica dica="A unidade de cada item produzido. Ex: unidade para brigadeiros, fatia para bolos fatiados, porção para granolas.">Unidade</LabelComDica>
               <select style={inputStyle} value={form.unidade_rendimento} onChange={e => setForm(f => ({...f, unidade_rendimento: e.target.value}))}>
                 {['unidade','porção','fatia','litro','kg'].map(u => <option key={u} value={u}>{u}</option>)}
               </select>
             </div>
             <div>
-              <label style={labelStyle}>Tempo preparo (min)</label>
+              <LabelComDica dica="Tempo total de preparo em minutos. Serve como referência para planejamento da produção.">Tempo de preparo (min)</LabelComDica>
               <input style={inputStyle} type="number" value={form.tempo_preparo_minutos} onChange={e => setForm(f => ({...f, tempo_preparo_minutos: e.target.value}))} placeholder="Ex: 60" />
             </div>
           </div>
@@ -232,7 +233,7 @@ function ModalReceita({ receita, insumos, margemInicial = 40, onFechar, onSalvar
           {/* Insumos da receita */}
           <div>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
-              <label style={{ ...labelStyle, margin: 0 }}>Insumos utilizados</label>
+              <LabelComDica dica="Adicione todos os ingredientes, embalagens e materiais usados nessa receita. O custo total será calculado automaticamente com base nos preços cadastrados em Insumos.">Insumos utilizados</LabelComDica>
               <button onClick={adicionarItem} style={{ background: '#FBEAF0', color: '#D4537E', padding: '6px 14px', borderRadius: 20, border: 'none', cursor: 'pointer', fontSize: 13, fontWeight: 600, display: 'flex', alignItems: 'center', gap: 4 }}>
                 <Plus size={14} /> Adicionar
               </button>
@@ -295,7 +296,7 @@ function ModalReceita({ receita, insumos, margemInicial = 40, onFechar, onSalvar
           )}
 
           <div>
-            <label style={labelStyle}>Observações / modo de preparo</label>
+            <LabelComDica dica="Anote o passo a passo, dicas de preparo, temperatura, tempo de forno, etc. Não afeta o cálculo de custo.">Observações / modo de preparo</LabelComDica>
             <textarea style={{ ...inputStyle, resize: 'vertical' }} rows={3} value={form.observacoes}
               onChange={e => setForm(f => ({...f, observacoes: e.target.value}))} placeholder="Instruções de preparo, dicas, variações..." />
           </div>

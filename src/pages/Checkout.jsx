@@ -305,6 +305,11 @@ export default function Checkout() {
           '\n_Pedido #' + pedido.id.slice(0,8).toUpperCase() + '_'
         )
 
+        // Incrementar uso do cupom se foi aplicado
+        if (cupomAplicado?.id) {
+          await supabase.from('cupons').update({ uso_atual: (cupomAplicado.uso_atual || 0) + 1 }).eq('id', cupomAplicado.id)
+        }
+
         setTotalFinal(totalComFrete)
         setNumeroPedido(pedido.id.slice(0,8).toUpperCase())
         limparCarrinho()

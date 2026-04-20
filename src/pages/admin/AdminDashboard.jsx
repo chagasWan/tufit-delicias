@@ -2,8 +2,9 @@ import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { supabase } from '../../lib/supabase'
 import { ShoppingBag, DollarSign, Users, TrendingUp, Package, AlertTriangle, ChevronRight, Calendar } from 'lucide-react'
+import { Tooltip } from '../../components/Tooltip'
 
-function MetricCard({ label, valor, sub, cor, icon: Icon, onClick }) {
+function MetricCard({ label, valor, sub, cor, icon: Icon, onClick, dica }) {
   return (
     <div
       onClick={onClick}
@@ -13,7 +14,10 @@ function MetricCard({ label, valor, sub, cor, icon: Icon, onClick }) {
     >
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
         <div>
-          <p style={{ fontSize: 13, color: '#9ca3af', margin: '0 0 8px' }}>{label}</p>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 4, marginBottom: 8 }}>
+            <p style={{ fontSize: 13, color: '#9ca3af', margin: 0 }}>{label}</p>
+            {dica && <Tooltip texto={dica} />}
+          </div>
           <p style={{ fontSize: 28, fontWeight: 800, color: cor || '#2C2C2A', margin: '0 0 4px' }}>{valor}</p>
           {sub && <p style={{ fontSize: 12, color: '#9ca3af', margin: 0 }}>{sub}</p>}
         </div>
@@ -63,6 +67,8 @@ export default function AdminDashboard() {
   const [topProdutos, setTopProdutos] = useState([])
   const [pedidosRecentes, setPedidosRecentes] = useState([])
   const [alertasEstoque, setAlertasEstoque] = useState([])
+  const [custoPeriodo, setCustoPeriodo] = useState(0)
+  const [comparativoMes, setComparativoMes] = useState(null)
 
   useEffect(() => { buscarDados() }, [periodo])
 
@@ -159,8 +165,45 @@ export default function AdminDashboard() {
     setPedidosRecentes(pedidosRecentes || [])
     setAlertasEstoque((ingredientesEstoque || []).filter(i => i.estoque_atual <= i.estoque_minimo))
 
+    // Calcular custo de produção do período (soma dos preco_custo × quantidade)
+    const pedidoIdsPeriodo = (pedidosAtivos || []).map(p => p.id)
+    let custoProd = 0
+    if (pedidoIdsPeriodo.length > 0) {
+      const { data: itensComCusto } = await supabase
+        .from('pedido_itens')
+        .select('quantidade, produto_id, produtos(preco_custo)')
+        .in('pedido_id', pedidoIdsPeriodo)
+      ;(itensComCusto || []).forEach(item => {
+        const custo = item.produtos?.preco_custo || 0
+        custoProd += custo * item.quantidade
+      })
+    }
+    setCustoPeriodo(custoProd)
+
+    // Comparativo com mês anterior
+    if (periodo === 'mes') {
+      const mesAnteriorInicio = new Date(hoje.getFullYear(), hoje.getMonth() - 1, 1)
+      const mesAnteriorFim = new Date(hoje.getFullYear(), hoje.getMonth(), 0)
+      const { data: pedidosMesAnterior } = await supabase
+        .from('pedidos')
+        .select('total')
+        .gte('created_at', mesAnteriorInicio.toISOString().split('T')[0])
+        .lte('created_at', mesAnteriorFim.toISOString().split('T')[0])
+        .neq('status', 'cancelado')
+      const fatMesAnterior = (pedidosMesAnterior || []).reduce((acc, p) => acc + (p.total || 0), 0)
+      setComparativoMes(fatMesAnterior)
+    } else {
+      setComparativoMes(null)
+    }
+
     setLoading(false)
   }
+
+  const lucroBruto = metricas.faturamento - custoPeriodo
+  const margemBruta = metricas.faturamento > 0 ? (lucroBruto / metricas.faturamento * 100) : 0
+  const variacaoMes = comparativoMes !== null && comparativoMes > 0
+    ? ((metricas.faturamento - comparativoMes) / comparativoMes * 100)
+    : null
 
   const STATUS_COR = { novo: '#3b82f6', confirmado: '#8b5cf6', producao: '#f59e0b', pronto: '#10b981', entregue: '#6b7280', cancelado: '#ef4444' }
   const STATUS_LABEL = { novo: 'Novo', confirmado: 'Confirmado', producao: 'Produzindo', pronto: 'Pronto', entregue: 'Entregue', cancelado: 'Cancelado' }
@@ -199,11 +242,16 @@ export default function AdminDashboard() {
         </div>
       )}
 
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 14, marginBottom: 24 }}>
-        <MetricCard label="Faturamento" valor={'R$ ' + metricas.faturamento.toFixed(2).replace('.', ',')} sub="Pedidos não cancelados" cor="#D4537E" icon={DollarSign} />
-        <MetricCard label="Pedidos" valor={metricas.pedidos} sub="No período selecionado" cor="#8b5cf6" icon={ShoppingBag} onClick={() => navigate('/admin/pedidos')} />
-        <MetricCard label="Ticket médio" valor={'R$ ' + metricas.ticketMedio.toFixed(2).replace('.', ',')} sub="Por pedido" cor="#10b981" icon={TrendingUp} />
-        <MetricCard label="Total de clientes" valor={metricas.clientes} sub="Clientes cadastrados" cor="#3b82f6" icon={Users} onClick={() => navigate('/admin/clientes')} />
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 14, marginBottom: 14 }}>
+        <MetricCard label="Faturamento" dica="Total recebido no período selecionado, excluindo pedidos cancelados. Quando no filtro Mês, mostra a variação em relação ao mês anterior." valor={'R$ ' + metricas.faturamento.toFixed(2).replace('.', ',')} sub={variacaoMes !== null ? (variacaoMes >= 0 ? '▲ ' : '▼ ') + Math.abs(variacaoMes).toFixed(1) + '% vs mês anterior' : 'Pedidos não cancelados'} cor="#D4537E" icon={DollarSign} />
+        <MetricCard label="Pedidos" dica="Quantidade de pedidos não cancelados no período. Clique para ver a lista completa." valor={metricas.pedidos} sub="No período selecionado" cor="#8b5cf6" icon={ShoppingBag} onClick={() => navigate('/admin/pedidos')} />
+        <MetricCard label="Ticket médio" dica="Valor médio de cada pedido no período. Quanto maior, melhor. Para aumentar, ofereça combos ou produtos complementares." valor={'R$ ' + metricas.ticketMedio.toFixed(2).replace('.', ',')} sub="Por pedido" cor="#10b981" icon={TrendingUp} />
+        <MetricCard label="Total de clientes" dica="Total de clientes cadastrados no sistema, incluindo todos os períodos. Clique para ver a lista." valor={metricas.clientes} sub="Clientes cadastrados" cor="#3b82f6" icon={Users} onClick={() => navigate('/admin/clientes')} />
+      </div>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 14, marginBottom: 24 }}>
+        <MetricCard label="Custo de produção" dica="Soma do custo de cada produto vendido no período (ingredientes + embalagens + materiais). Só aparece quando os produtos têm custo cadastrado ou receita vinculada." valor={custoPeriodo > 0 ? 'R$ ' + custoPeriodo.toFixed(2).replace('.', ',') : '—'} sub="Baseado no custo dos produtos" cor="#f59e0b" icon={Package} />
+        <MetricCard label="Lucro bruto" dica="Faturamento menos o custo de produção. Não inclui custos fixos como luz, gás, embalagens de transporte, etc. É o lucro antes de outros gastos." valor={custoPeriodo > 0 ? 'R$ ' + lucroBruto.toFixed(2).replace('.', ',') : '—'} sub="Faturamento - custo produção" cor={lucroBruto >= 0 ? '#10b981' : '#ef4444'} icon={TrendingUp} />
+        <MetricCard label="Margem bruta" dica="Porcentagem do faturamento que sobra após pagar o custo de produção. Verde (≥40%) significa boa rentabilidade. Amarelo indica que os preços podem estar baixos em relação ao custo." valor={custoPeriodo > 0 ? margemBruta.toFixed(1) + '%' : '—'} sub={custoPeriodo > 0 ? (margemBruta >= 40 ? '✓ Boa margem' : '⚠ Margem baixa') : 'Cadastre custos nos produtos'} cor={margemBruta >= 40 ? '#10b981' : '#f59e0b'} icon={DollarSign} />
       </div>
 
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 14, marginBottom: 24 }}>

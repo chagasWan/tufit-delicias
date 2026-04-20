@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '../../lib/supabase'
 import { Plus, Edit2, Trash2, X, AlertTriangle, Package, Search } from 'lucide-react'
+import { LabelComDica } from '../../components/Tooltip'
 import toast from 'react-hot-toast'
 
 const inputStyle = { width: '100%', padding: '10px 14px', borderRadius: 10, border: '1.5px solid #e5e7eb', fontSize: 14, outline: 'none', boxSizing: 'border-box', fontFamily: 'Inter, sans-serif' }
@@ -80,7 +81,7 @@ function ModalInsumo({ insumo, onFechar, onSalvar }) {
 
           {/* Categoria */}
           <div>
-            <label style={labelStyle}>Categoria *</label>
+            <LabelComDica dica="Classifique o insumo para organizar melhor. Ingredientes vão para receitas. Embalagens e materiais também entram no custo." obrigatorio>Categoria</LabelComDica>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 8 }}>
               {CATEGORIAS.map(cat => (
                 <button key={cat.value} onClick={() => handleCategoria(cat.value)}
@@ -95,7 +96,7 @@ function ModalInsumo({ insumo, onFechar, onSalvar }) {
 
           {/* Nome */}
           <div>
-            <label style={labelStyle}>Nome *</label>
+            <LabelComDica dica="Use um nome descritivo, de preferência com o tamanho ou quantidade. Ex: Chocolate em pó 200g, Caixinha kraft 9cm." obrigatorio>Nome</LabelComDica>
             <input style={inputStyle} value={form.nome} onChange={e => setForm(f => ({ ...f, nome: e.target.value }))}
               placeholder={form.categoria === 'ingrediente' ? 'Ex: Chocolate em pó' : form.categoria === 'embalagem' ? 'Ex: Caixinha kraft 9cm' : 'Ex: Adesivo personalizado'} />
           </div>
@@ -103,13 +104,13 @@ function ModalInsumo({ insumo, onFechar, onSalvar }) {
           {/* Preço e unidades */}
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
             <div>
-              <label style={labelStyle}>Unidade de compra</label>
+              <LabelComDica dica="Como você compra esse insumo? Ex: kg, unidade, pacote. Para uma lata de leite condensado, seria unidade.">Unidade de compra</LabelComDica>
               <select style={inputStyle} value={form.unidade_compra} onChange={e => setForm(f => ({ ...f, unidade_compra: e.target.value }))}>
                 {['unidade', 'pacote', 'caixa', 'kg', 'g', 'litro', 'ml', 'lata', 'rolo'].map(u => <option key={u} value={u}>{u}</option>)}
               </select>
             </div>
             <div>
-              <label style={labelStyle}>Preço da unidade de compra (R$)</label>
+              <LabelComDica dica="Quanto você paga por 1 unidade de compra. Ex: se compra 1kg de farinha por R$ 8,50, coloque 8,50.">Preço da unidade (R$)</LabelComDica>
               <input style={inputStyle} type="number" step="0.01" value={form.preco_unidade}
                 onChange={e => setForm(f => ({ ...f, preco_unidade: e.target.value }))} placeholder="0,00" />
             </div>
@@ -118,13 +119,13 @@ function ModalInsumo({ insumo, onFechar, onSalvar }) {
           {/* Conversão (só relevante se não for unidade simples) */}
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
             <div>
-              <label style={labelStyle}>Quantidade por unidade comprada</label>
+              <LabelComDica dica="Quantas unidades de uso cabem em 1 unidade de compra. Ex: 1 kg = 1000g, então coloque 1000. 1 lata de leite condensado 395g = 395, coloque 395.">Quantidade por unidade comprada</LabelComDica>
               <input style={inputStyle} type="number" value={form.quantidade_por_unidade}
                 onChange={e => setForm(f => ({ ...f, quantidade_por_unidade: e.target.value }))}
                 placeholder={isIngrediente ? 'Ex: 1000 (1kg = 1000g)' : 'Ex: 10 (1 pacote = 10 un)'} />
             </div>
             <div>
-              <label style={labelStyle}>Unidade de uso na receita</label>
+              <LabelComDica dica="Como você mede esse insumo na hora de fazer a receita. Ingredientes sólidos geralmente são g, líquidos ml, embalagens são unidade.">Unidade de uso na receita</LabelComDica>
               <select style={inputStyle} value={form.unidade_uso} onChange={e => setForm(f => ({ ...f, unidade_uso: e.target.value }))}>
                 {['unidade', 'g', 'ml', 'colher', 'xícara'].map(u => <option key={u} value={u}>{u}</option>)}
               </select>
@@ -141,12 +142,12 @@ function ModalInsumo({ insumo, onFechar, onSalvar }) {
           {/* Estoque */}
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
             <div>
-              <label style={labelStyle}>Estoque atual ({form.unidade_compra})</label>
+              <LabelComDica dica="Quantas unidades de compra você tem agora. Ex: se tem 2 latas, coloque 2. Se tem meio pacote de 1kg, coloque 0,5.">Estoque atual ({form.unidade_compra})</LabelComDica>
               <input style={inputStyle} type="number" value={form.estoque_atual}
                 onChange={e => setForm(f => ({ ...f, estoque_atual: e.target.value }))} />
             </div>
             <div>
-              <label style={labelStyle}>Estoque mínimo ({form.unidade_compra})</label>
+              <LabelComDica dica="Quando o estoque chegar abaixo desse valor, o sistema vai exibir um alerta de reposição. Ex: coloque 1 para ser avisado quando tiver menos de 1 unidade.">Estoque mínimo ({form.unidade_compra})</LabelComDica>
               <input style={inputStyle} type="number" value={form.estoque_minimo}
                 onChange={e => setForm(f => ({ ...f, estoque_minimo: e.target.value }))} />
               <p style={{ fontSize: 11, color: '#9ca3af', margin: '3px 0 0' }}>Alerta abaixo deste valor</p>

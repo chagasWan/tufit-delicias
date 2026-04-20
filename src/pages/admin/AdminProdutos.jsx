@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '../../lib/supabase'
 import { Plus, Edit2, Trash2, Eye, EyeOff, Star, X, Upload, Clock, BookOpen } from 'lucide-react'
+import { LabelComDica } from '../../components/Tooltip'
 import toast from 'react-hot-toast'
 
 function ModalProduto({ produto, categorias, receitas, onFechar, onSalvar }) {
@@ -116,10 +117,7 @@ function ModalProduto({ produto, categorias, receitas, onFechar, onSalvar }) {
 
           {/* Receita vinculada — campo principal */}
           <div style={{ background: '#f0fdf4', borderRadius: 14, padding: 16, border: '1px solid #bbf7d0' }}>
-            <label style={{ ...labelStyle, color: '#15803d', fontWeight: 600 }}>
-              <BookOpen size={14} style={{ display: 'inline', marginRight: 4 }} />
-              Receita vinculada
-            </label>
+            <LabelComDica dica="Vincule a receita deste produto. O custo por unidade será calculado automaticamente com base nos insumos da receita. Se não vincular, preencha o custo manualmente.">Receita vinculada</LabelComDica>
             <select style={{ ...inputStyle, border: '1.5px solid #86efac' }} value={form.receita_id} onChange={e => handleReceitaChange(e.target.value)}>
               <option value="">Selecione a receita deste produto...</option>
               {receitas.map(r => <option key={r.id} value={r.id}>{r.nome} (rende {r.rendimento} {r.unidade_rendimento})</option>)}
@@ -136,20 +134,20 @@ function ModalProduto({ produto, categorias, receitas, onFechar, onSalvar }) {
 
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
             <div style={{ gridColumn: '1 / -1' }}>
-              <label style={labelStyle}>Nome do produto *</label>
+              <LabelComDica dica="Nome que aparece no cardápio para os clientes. Use algo claro e apetitoso. Ex: Brigadeiro Fit de Cacau 70%." obrigatorio>Nome do produto</LabelComDica>
               <input style={inputStyle} value={form.nome} onChange={e => atualizar('nome', e.target.value)} placeholder="Ex: Brigadeiro Fit" />
             </div>
             <div style={{ gridColumn: '1 / -1' }}>
-              <label style={labelStyle}>Descrição</label>
+              <LabelComDica dica="Descrição curta que aparece no cardápio. Destaque os diferenciais: ingredientes especiais, benefícios, tamanho, etc.">Descrição</LabelComDica>
               <textarea style={{ ...inputStyle, resize: 'vertical' }} rows={2} value={form.descricao} onChange={e => atualizar('descricao', e.target.value)} placeholder="Descreva o produto..." />
             </div>
 
             <div>
-              <label style={labelStyle}>Preço de venda (R$) *</label>
+              <LabelComDica dica="Preço que o cliente vai pagar. O sistema mostra a margem de lucro automaticamente ao comparar com o custo." obrigatorio>Preço de venda (R$)</LabelComDica>
               <input style={inputStyle} type="number" step="0.01" min="0" value={form.preco} onChange={e => atualizar('preco', e.target.value)} placeholder="0,00" />
             </div>
             <div>
-              <label style={labelStyle}>Custo por unidade (R$)</label>
+              <LabelComDica dica="Custo de produção de 1 unidade deste produto. Preenchido automaticamente quando uma receita é vinculada. Inclui ingredientes, embalagens e materiais.">Custo por unidade (R$)</LabelComDica>
               <input style={inputStyle} type="number" step="0.0001" min="0" value={form.preco_custo}
                 onChange={e => atualizar('preco_custo', e.target.value)} placeholder="Preenchido pela receita" />
             </div>
@@ -167,35 +165,35 @@ function ModalProduto({ produto, categorias, receitas, onFechar, onSalvar }) {
 
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
             <div>
-              <label style={labelStyle}>Categoria</label>
+              <LabelComDica dica="Categoria do produto no cardápio. Ajuda os clientes a filtrar o que procuram. Ex: Docinhos, Bolos, Granolas.">Categoria</LabelComDica>
               <select style={inputStyle} value={form.categoria_id} onChange={e => atualizar('categoria_id', e.target.value)}>
                 <option value="">Selecione...</option>
                 {categorias.map(c => <option key={c.id} value={c.id}>{c.nome}</option>)}
               </select>
             </div>
             <div>
-              <label style={labelStyle}>Prazo mínimo (horas)</label>
+              <LabelComDica dica="Antecedência mínima que o cliente precisa ter para fazer o pedido. Ex: 24 = pedido com pelo menos 1 dia de antecedência. Impede pedidos para datas impossíveis.">Prazo mínimo (horas)</LabelComDica>
               <input style={inputStyle} type="number" min="1" value={form.prazo_minimo_horas} onChange={e => atualizar('prazo_minimo_horas', e.target.value)} />
               <p style={{ fontSize: 11, color: '#9ca3af', margin: '4px 0 0' }}>
                 {form.prazo_minimo_horas < 24 ? form.prazo_minimo_horas + 'h' : Math.floor(form.prazo_minimo_horas/24) + ' dia(s)'} de antecedência
               </p>
             </div>
             <div>
-              <label style={labelStyle}>Capacidade por dia</label>
+              <LabelComDica dica="Quantidade máxima que você consegue produzir deste produto por dia. Ainda não está sendo usada para bloquear pedidos, mas serve como referência.">Capacidade por dia</LabelComDica>
               <input style={inputStyle} type="number" min="1" value={form.capacidade_dia} onChange={e => atualizar('capacidade_dia', e.target.value)} />
             </div>
             <div>
-              <label style={labelStyle}>🏠 Horários de retirada</label>
+              <LabelComDica dica="Horários disponíveis para o cliente retirar pessoalmente. Separe por vírgula. Ex: 09:00, 14:00, 18:00.">🏠 Horários de retirada</LabelComDica>
               <input style={inputStyle} value={form.horarios_retirada} onChange={e => atualizar('horarios_retirada', e.target.value)} placeholder="09:00, 14:00, 16:00, 18:00" />
               <p style={{ fontSize: 11, color: '#9ca3af', margin: '4px 0 0' }}>Horários disponíveis para retirada no local</p>
             </div>
             <div>
-              <label style={labelStyle}>🚗 Horários de entrega</label>
+              <LabelComDica dica="Horários disponíveis para entrega em domicílio. Podem ser diferentes da retirada. Ex: 12:00, 18:00, 19:00.">🚗 Horários de entrega</LabelComDica>
               <input style={inputStyle} value={form.horarios_entrega} onChange={e => atualizar('horarios_entrega', e.target.value)} placeholder="12:00, 18:00, 19:00" />
               <p style={{ fontSize: 11, color: '#9ca3af', margin: '4px 0 0' }}>Horários disponíveis para entrega em casa</p>
             </div>
             <div style={{ gridColumn: '1 / -1' }}>
-              <label style={labelStyle}>Tags (separadas por vírgula)</label>
+              <LabelComDica dica="Palavras que aparecem como badges no cardápio. Use para destacar diferenciais. Ex: Sem açúcar, Sem glúten, Sem lactose, Vegano.">Tags (separadas por vírgula)</LabelComDica>
               <input style={inputStyle} value={form.ingredientes_destaque} onChange={e => atualizar('ingredientes_destaque', e.target.value)} placeholder="Sem açúcar, Sem glúten, Sem lactose" />
             </div>
           </div>
