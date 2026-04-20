@@ -23,25 +23,70 @@ function ModalProduto({ produto, categorias, receitas, onFechar, onSalvar }) {
   })
   const [salvando, setSalvando] = useState(false)
   const [uploadando, setUploadando] = useState(false)
+  const [recalculando, setRecalculando] = useState(false)
 
-  // Quando seleciona receita, preenche o custo automaticamente
-  function handleReceitaChange(receitaId) {
-    const receita = receitas.find(r => r.id === receitaId)
+  // Ao abrir o modal com receita vinculada, recalcula e salva o custo automaticamente
+  useEffect(() => {
+    if (produto?.id && produto?.receita_id) {
+      recalcularEAutosalvar(produto.receita_id, produto.id)
+    }
+  }, [])
+
+  async function recalcularEAutosalvar(receitaId, produtoId) {
+    if (!receitaId) return
+    setRecalculando(true)
+    const { data: receita } = await supabase
+      .from('receitas')
+      .select('rendimento, receita_ingredientes(quantidade, ingredientes(preco_unidade, quantidade_por_unidade))')
+      .eq('id', receitaId)
+      .single()
+
     if (receita) {
       const custo = (receita.receita_ingredientes || []).reduce((acc, ri) => {
         if (!ri.ingredientes) return acc
         return acc + (ri.ingredientes.preco_unidade / ri.ingredientes.quantidade_por_unidade) * ri.quantidade
       }, 0)
       const custoPorUnidade = receita.rendimento > 0 ? custo / receita.rendimento : 0
-      setForm(f => ({
-        ...f,
-        receita_id: receitaId,
-        preco_custo: custoPorUnidade > 0 ? custoPorUnidade.toFixed(4) : f.preco_custo,
-        nome: f.nome || receita.nome,
-      }))
-    } else {
-      setForm(f => ({ ...f, receita_id: receitaId }))
+      if (custoPorUnidade > 0) {
+        const novoCusto = custoPorUnidade.toFixed(4)
+        setForm(f => ({ ...f, preco_custo: novoCusto }))
+        // Salvar automaticamente no banco se o produto já existe
+        if (produtoId) {
+          await supabase.from('produtos').update({ preco_custo: parseFloat(novoCusto) }).eq('id', produtoId)
+        }
+      }
     }
+    setRecalculando(false)
+  }
+
+  async function recalcularCusto(receitaId) {
+    if (!receitaId) return
+    setRecalculando(true)
+    const { data: receita } = await supabase
+      .from('receitas')
+      .select('rendimento, receita_ingredientes(quantidade, ingredientes(preco_unidade, quantidade_por_unidade))')
+      .eq('id', receitaId)
+      .single()
+
+    if (receita) {
+      const custo = (receita.receita_ingredientes || []).reduce((acc, ri) => {
+        if (!ri.ingredientes) return acc
+        return acc + (ri.ingredientes.preco_unidade / ri.ingredientes.quantidade_por_unidade) * ri.quantidade
+      }, 0)
+      const custoPorUnidade = receita.rendimento > 0 ? custo / receita.rendimento : 0
+      if (custoPorUnidade > 0) {
+        setForm(f => ({ ...f, preco_custo: custoPorUnidade.toFixed(4) }))
+      }
+    }
+    setRecalculando(false)
+  }
+
+  // Quando seleciona receita, busca custo atualizado do banco
+  async function handleReceitaChange(receitaId) {
+    const receitaLocal = receitas.find(r => r.id === receitaId)
+    setForm(f => ({ ...f, receita_id: receitaId, nome: f.nome || receitaLocal?.nome || '' }))
+    if (receitaId) await recalcularCusto(receitaId)
+    else setForm(f => ({ ...f, receita_id: '' }))
   }
 
   function atualizar(campo, valor) { setForm(f => ({ ...f, [campo]: valor })) }
@@ -147,7 +192,7 @@ function ModalProduto({ produto, categorias, receitas, onFechar, onSalvar }) {
               <input style={inputStyle} type="number" step="0.01" min="0" value={form.preco} onChange={e => atualizar('preco', e.target.value)} placeholder="0,00" />
             </div>
             <div>
-              <LabelComDica dica="Custo de produção de 1 unidade deste produto. Preenchido automaticamente quando uma receita é vinculada. Inclui ingredientes, embalagens e materiais.">Custo por unidade (R$)</LabelComDica>
+              <LabelComDica dica="Custo de produção de 1 unidade deste produto. Preenchido automaticamente quando uma receita é vinculada. Inclui ingredientes, embalagens e materiais. Sempre recalculado com os preços atuais dos insumos ao abrir esta tela.">{recalculando ? '⏳ Recalculando custo...' : 'Custo por unidade (R$)'}</LabelComDica>
               <input style={inputStyle} type="number" step="0.0001" min="0" value={form.preco_custo}
                 onChange={e => atualizar('preco_custo', e.target.value)} placeholder="Preenchido pela receita" />
             </div>
@@ -244,6 +289,7 @@ export default function AdminProdutos() {
   const [modalAberto, setModalAberto] = useState(false)
   const [produtoEditando, setProdutoEditando] = useState(null)
   const [filtro, setFiltro] = useState('todos')
+  const [atualizandoCustos, setAtualizandoCustos] = useState(false)
 
   useEffect(() => { buscarDados() }, [])
 
@@ -257,6 +303,42 @@ export default function AdminProdutos() {
     setCategorias(c || [])
     setReceitas(r || [])
     setLoading(false)
+
+    // Recalcular e salvar custo de todos os produtos com receita vinculada em segundo plano
+    const produtosComReceita = (p || []).filter(prod => prod.receita_id)
+    if (produtosComReceita.length > 0) {
+      setAtualizandoCustos(true)
+      const receitasMap = {}
+      ;(r || []).forEach(rec => { receitasMap[rec.id] = rec })
+
+      const updates = []
+      produtosComReceita.forEach(prod => {
+        const receita = receitasMap[prod.receita_id]
+        if (!receita) return
+        const custo = (receita.receita_ingredientes || []).reduce((acc, ri) => {
+          if (!ri.ingredientes) return acc
+          return acc + (ri.ingredientes.preco_unidade / ri.ingredientes.quantidade_por_unidade) * ri.quantidade
+        }, 0)
+        const custoPorUnidade = receita.rendimento > 0 ? custo / receita.rendimento : 0
+        if (custoPorUnidade > 0) {
+          updates.push({ id: prod.id, preco_custo: parseFloat(custoPorUnidade.toFixed(4)) })
+        }
+      })
+
+      // Salvar todos os custos atualizados
+      await Promise.all(updates.map(u =>
+        supabase.from('produtos').update({ preco_custo: u.preco_custo }).eq('id', u.id)
+      ))
+
+      // Atualizar a lista local com os novos custos (sem precisar rebuscar do banco)
+      if (updates.length > 0) {
+        setProdutos(prev => prev.map(prod => {
+          const upd = updates.find(u => u.id === prod.id)
+          return upd ? { ...prod, preco_custo: upd.preco_custo } : prod
+        }))
+      }
+      setAtualizandoCustos(false)
+    }
   }
 
   async function toggleAtivo(produto) {
@@ -296,6 +378,11 @@ export default function AdminProdutos() {
 
   return (
     <div style={{ fontFamily: 'Inter, sans-serif' }}>
+      {atualizandoCustos && (
+        <div style={{ background: '#fffbeb', border: '1px solid #fde68a', borderRadius: 10, padding: '10px 16px', marginBottom: 16, fontSize: 13, color: '#92400e', display: 'flex', alignItems: 'center', gap: 8 }}>
+          ⏳ Atualizando custos de produção com os preços atuais dos insumos...
+        </div>
+      )}
       {modalAberto && (
         <ModalProduto
           produto={produtoEditando}
