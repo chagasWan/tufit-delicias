@@ -253,7 +253,7 @@ function ModalReceita({ receita, insumos, margemInicial = 40, onFechar, onSalvar
             <div>
               <LabelComDica dica="A unidade de cada item produzido. Ex: unidade para brigadeiros, fatia para bolos fatiados, porção para granolas.">Unidade</LabelComDica>
               <select style={inputStyle} value={form.unidade_rendimento} onChange={e => setForm(f => ({...f, unidade_rendimento: e.target.value}))}>
-                {['unidade','porção','fatia','litro','kg'].map(u => <option key={u} value={u}>{u}</option>)}
+                {['unidade','caixa','porção','fatia','litro','kg','pacote'].map(u => <option key={u} value={u}>{u}</option>)}
               </select>
             </div>
             <div>
