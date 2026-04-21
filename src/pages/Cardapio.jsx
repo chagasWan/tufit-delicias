@@ -38,6 +38,7 @@ function formatarPrazo(horas) {
 
 function ProdutoCard({ produto, onPedir }) {
   const [hover, setHover] = useState(false)
+  const [fotoExpandida, setFotoExpandida] = useState(false)
 
   return (
     <div
@@ -55,9 +56,18 @@ function ProdutoCard({ produto, onPedir }) {
         flexDirection: 'column',
       }}
     >
+      {/* Modal foto expandida */}
+      {fotoExpandida && produto.foto_url && (
+        <div onClick={() => setFotoExpandida(false)} style={{ position: 'fixed', inset: 0, zIndex: 500, background: 'rgba(0,0,0,0.85)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24, cursor: 'zoom-out' }}>
+          <img src={produto.foto_url} alt={produto.nome} style={{ maxWidth: '90vw', maxHeight: '85vh', borderRadius: 16, objectFit: 'contain', boxShadow: '0 20px 60px rgba(0,0,0,0.5)' }} />
+          <div style={{ position: 'absolute', top: 20, right: 20, background: 'rgba(255,255,255,0.15)', borderRadius: '50%', width: 40, height: 40, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontSize: 20, cursor: 'pointer' }}>✕</div>
+          <div style={{ position: 'absolute', bottom: 24, left: 0, right: 0, textAlign: 'center', color: '#fff', fontSize: 15, fontWeight: 600, textShadow: '0 2px 4px rgba(0,0,0,0.5)' }}>{produto.nome}</div>
+        </div>
+      )}
+
       <div style={{ height: 200, background: '#FBEAF0', display: 'flex', alignItems: 'center', justifyContent: 'center', position: 'relative', overflow: 'hidden' }}>
         {produto.foto_url ? (
-          <img src={produto.foto_url} alt={produto.nome} style={{ width: '100%', height: '100%', objectFit: 'cover', transition: 'transform 0.3s', transform: hover ? 'scale(1.05)' : 'scale(1)' }} />
+          <img src={produto.foto_url} alt={produto.nome} onClick={() => setFotoExpandida(true)} style={{ width: '100%', height: '100%', objectFit: 'cover', transition: 'transform 0.3s', transform: hover ? 'scale(1.05)' : 'scale(1)', cursor: 'zoom-in' }} />
         ) : (
           <span style={{ fontSize: 64 }}>🍰</span>
         )}
