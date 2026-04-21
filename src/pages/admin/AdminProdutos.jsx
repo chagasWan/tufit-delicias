@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { supabase } from '../../lib/supabase'
 import { Plus, Edit2, Trash2, Eye, EyeOff, Star, X, Upload, Clock, BookOpen } from 'lucide-react'
 import { LabelComDica } from '../../components/Tooltip'
+import { BotaoTabelaNutricional } from '../../components/TabelaNutricional'
 import toast from 'react-hot-toast'
 
 function ModalProduto({ produto, categorias, receitas, onFechar, onSalvar }) {
@@ -37,7 +38,7 @@ function ModalProduto({ produto, categorias, receitas, onFechar, onSalvar }) {
     setRecalculando(true)
     const { data: receita } = await supabase
       .from('receitas')
-      .select('rendimento, receita_ingredientes(quantidade, ingredientes(preco_unidade, quantidade_por_unidade))')
+      .select('rendimento, receita_ingredientes(quantidade, ingredientes(preco_unidade, quantidade_por_unidade, kcal_por_100, carb_por_100, proteina_por_100, gordura_por_100, gordura_sat_por_100, gordura_trans_por_100, fibra_por_100, sodio_por_100, acucar_por_100))')
       .eq('id', receitaId)
       .single()
 
@@ -47,12 +48,29 @@ function ModalProduto({ produto, categorias, receitas, onFechar, onSalvar }) {
         return acc + (ri.ingredientes.preco_unidade / ri.ingredientes.quantidade_por_unidade) * ri.quantidade
       }, 0)
       const custoPorUnidade = receita.rendimento > 0 ? custo / receita.rendimento : 0
-      if (custoPorUnidade > 0) {
-        const novoCusto = custoPorUnidade.toFixed(4)
-        setForm(f => ({ ...f, preco_custo: novoCusto }))
-        // Salvar automaticamente no banco se o produto já existe
+
+      // Calcular tabela nutricional por porção
+      const CAMPOS_NUTRI = ['kcal_por_100','carb_por_100','proteina_por_100','gordura_por_100','gordura_sat_por_100','gordura_trans_por_100','fibra_por_100','sodio_por_100','acucar_por_100']
+      const nutri = {}
+      CAMPOS_NUTRI.forEach(campo => {
+        const total = (receita.receita_ingredientes || []).reduce((soma, ri) => {
+          const v = ri.ingredientes?.[campo] || 0
+          return soma + (v * ri.quantidade) / 100
+        }, 0)
+        nutri[campo.replace('_por_100', '_porcao')] = receita.rendimento > 0 ? parseFloat((total / receita.rendimento).toFixed(2)) : 0
+      })
+
+      if (custoPorUnidade > 0 || Object.values(nutri).some(v => v > 0)) {
+        const updates = {}
+        if (custoPorUnidade > 0) {
+          const novoCusto = custoPorUnidade.toFixed(4)
+          setForm(f => ({ ...f, preco_custo: novoCusto }))
+          updates.preco_custo = parseFloat(novoCusto)
+        }
+        // Guardar nutrição como JSON no campo descricao_nutricional (vamos usar metadata)
+        updates.nutricao = nutri
         if (produtoId) {
-          await supabase.from('produtos').update({ preco_custo: parseFloat(novoCusto) }).eq('id', produtoId)
+          await supabase.from('produtos').update(updates).eq('id', produtoId)
         }
       }
     }
@@ -517,6 +535,9 @@ export default function AdminProdutos() {
                       )
                     })()}
                     {p.receita_id && <span style={{ fontSize: 12, color: '#8b5cf6', background: '#f5f3ff', padding: '2px 8px', borderRadius: 10 }}>📖 {nomeReceita(p.receita_id)}</span>}
+                    {p.nutricao && Object.values(p.nutricao).some(v => v > 0) && (
+                      <BotaoTabelaNutricional nutricao={p.nutricao} nomeProduto={p.nome} />
+                    )}
                     <span style={{ fontSize: 13, color: '#9ca3af', display: 'flex', alignItems: 'center', gap: 3 }}>
                       <Clock size={12} /> {formatarPrazo(p.prazo_minimo_horas)}
                     </span>

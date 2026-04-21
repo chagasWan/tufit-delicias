@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import { BotaoTabelaNutricional } from '../components/TabelaNutricional'
 import { useIsMobile } from '../hooks/useIsMobile'
 import { useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
@@ -80,6 +81,11 @@ function ProdutoCard({ produto, onPedir }) {
             {produto.ingredientes_destaque.map(tag => (
               <span key={tag} style={{ background: '#FBEAF0', color: '#993556', fontSize: 11, padding: '3px 10px', borderRadius: 20, fontWeight: 500 }}>{tag}</span>
             ))}
+          </div>
+        )}
+        {produto.nutricao && Object.values(produto.nutricao).some(v => v > 0) && (
+          <div style={{ marginBottom: 12 }}>
+            <BotaoTabelaNutricional nutricao={produto.nutricao} nomeProduto={produto.nome} />
           </div>
         )}
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: 'auto' }}>

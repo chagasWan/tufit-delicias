@@ -23,6 +23,15 @@ function ModalInsumo({ insumo, onFechar, onSalvar }) {
     preco_unidade: insumo?.preco_unidade || '',
     estoque_atual: insumo?.estoque_atual || 0,
     estoque_minimo: insumo?.estoque_minimo || 0,
+    kcal_por_100: insumo?.kcal_por_100 || 0,
+    carb_por_100: insumo?.carb_por_100 || 0,
+    proteina_por_100: insumo?.proteina_por_100 || 0,
+    gordura_por_100: insumo?.gordura_por_100 || 0,
+    gordura_sat_por_100: insumo?.gordura_sat_por_100 || 0,
+    gordura_trans_por_100: insumo?.gordura_trans_por_100 || 0,
+    fibra_por_100: insumo?.fibra_por_100 || 0,
+    sodio_por_100: insumo?.sodio_por_100 || 0,
+    acucar_por_100: insumo?.acucar_por_100 || 0,
   })
   const [salvando, setSalvando] = useState(false)
 
@@ -54,6 +63,15 @@ function ModalInsumo({ insumo, onFechar, onSalvar }) {
       preco_unidade: parseFloat(form.preco_unidade),
       estoque_atual: parseFloat(form.estoque_atual) || 0,
       estoque_minimo: parseFloat(form.estoque_minimo) || 0,
+      kcal_por_100: parseFloat(form.kcal_por_100) || 0,
+      carb_por_100: parseFloat(form.carb_por_100) || 0,
+      proteina_por_100: parseFloat(form.proteina_por_100) || 0,
+      gordura_por_100: parseFloat(form.gordura_por_100) || 0,
+      gordura_sat_por_100: parseFloat(form.gordura_sat_por_100) || 0,
+      gordura_trans_por_100: parseFloat(form.gordura_trans_por_100) || 0,
+      fibra_por_100: parseFloat(form.fibra_por_100) || 0,
+      sodio_por_100: parseFloat(form.sodio_por_100) || 0,
+      acucar_por_100: parseFloat(form.acucar_por_100) || 0,
     }
     let error
     if (insumo?.id) {
@@ -153,6 +171,37 @@ function ModalInsumo({ insumo, onFechar, onSalvar }) {
               <p style={{ fontSize: 11, color: '#9ca3af', margin: '3px 0 0' }}>Alerta abaixo deste valor</p>
             </div>
           </div>
+
+          {/* Tabela Nutricional — só para ingredientes */}
+          {form.categoria === 'ingrediente' && (
+            <div style={{ background: '#f0fdf4', borderRadius: 12, padding: 14, border: '1px solid #bbf7d0' }}>
+              <p style={{ fontSize: 13, fontWeight: 600, color: '#15803d', margin: '0 0 10px' }}>
+                🥗 Informações Nutricionais <span style={{ fontWeight: 400, color: '#6b7280', fontSize: 12 }}>(por 100g/ml — opcional)</span>
+              </p>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 10 }}>
+                {[
+                  { campo: 'kcal_por_100', label: 'Calorias (kcal)' },
+                  { campo: 'carb_por_100', label: 'Carboidratos (g)' },
+                  { campo: 'acucar_por_100', label: 'Açúcares (g)' },
+                  { campo: 'proteina_por_100', label: 'Proteínas (g)' },
+                  { campo: 'gordura_por_100', label: 'Gorduras totais (g)' },
+                  { campo: 'gordura_sat_por_100', label: 'Gorduras sat. (g)' },
+                  { campo: 'gordura_trans_por_100', label: 'Gorduras trans (g)' },
+                  { campo: 'fibra_por_100', label: 'Fibras (g)' },
+                  { campo: 'sodio_por_100', label: 'Sódio (mg)' },
+                ].map(({ campo, label }) => (
+                  <div key={campo}>
+                    <label style={{ fontSize: 11, color: '#6b7280', display: 'block', marginBottom: 3 }}>{label}</label>
+                    <input style={{ ...inputStyle, padding: '7px 10px', fontSize: 13 }} type="number" step="0.1" min="0"
+                      value={form[campo]} onChange={e => setForm(f => ({ ...f, [campo]: e.target.value }))} />
+                  </div>
+                ))}
+              </div>
+              <p style={{ fontSize: 11, color: '#9ca3af', margin: '8px 0 0' }}>
+                💡 Encontre esses valores na embalagem do produto ou em tabelas nutricionais online. O sistema calcula automaticamente para a receita inteira.
+              </p>
+            </div>
+          )}
 
           <div style={{ display: 'flex', gap: 12, marginTop: 8 }}>
             <button onClick={onFechar} style={{ flex: 1, background: 'transparent', color: '#6b7280', padding: '12px', borderRadius: 20, border: '1.5px solid #e5e7eb', cursor: 'pointer' }}>Cancelar</button>

@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { ShoppingBag, Star, Leaf, Heart, ChevronDown, MessageCircle, Menu, X } from 'lucide-react'
 import { useCarrinho } from '../contexts/CarrinhoContext'
+import { BotaoTabelaNutricional } from '../components/TabelaNutricional'
 import { useIsMobile } from '../hooks/useIsMobile'
 import logoImg from '../assets/logo-tufit.png'
 import thainaraImg from '../assets/thainara.png'
@@ -32,6 +33,11 @@ function ProdutoCard({ produto, onPedir }) {
             {produto.ingredientes_destaque.map(tag => (
               <span key={tag} style={{ background: '#FBEAF0', color: '#993556', fontSize: 12, padding: '3px 10px', borderRadius: 20 }}>{tag}</span>
             ))}
+          </div>
+        )}
+        {produto.nutricao && Object.values(produto.nutricao).some(v => v > 0) && (
+          <div style={{ marginBottom: 10 }}>
+            <BotaoTabelaNutricional nutricao={produto.nutricao} nomeProduto={produto.nome} />
           </div>
         )}
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: 16 }}>

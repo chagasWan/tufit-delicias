@@ -147,6 +147,33 @@ function ModalReceita({ receita, insumos, margemInicial = 40, onFechar, onSalvar
 
   const custoPorUnidade = form.rendimento > 0 ? custoTotal / parseFloat(form.rendimento) : 0
   const precoSugerido = custoPorUnidade / (1 - margem / 100)
+  // Calcular tabela nutricional por unidade/porção
+  const NUTRIENTES = [
+    { campo: 'kcal_por_100', label: 'Valor energético', unidade: 'kcal' },
+    { campo: 'carb_por_100', label: 'Carboidratos', unidade: 'g' },
+    { campo: 'acucar_por_100', label: 'Açúcares', unidade: 'g' },
+    { campo: 'proteina_por_100', label: 'Proteínas', unidade: 'g' },
+    { campo: 'gordura_por_100', label: 'Gorduras totais', unidade: 'g' },
+    { campo: 'gordura_sat_por_100', label: 'Gorduras saturadas', unidade: 'g' },
+    { campo: 'gordura_trans_por_100', label: 'Gorduras trans', unidade: 'g' },
+    { campo: 'fibra_por_100', label: 'Fibra alimentar', unidade: 'g' },
+    { campo: 'sodio_por_100', label: 'Sódio', unidade: 'mg' },
+  ]
+
+  const tabelaNutricional = NUTRIENTES.reduce((acc, n) => {
+    const totalNutriente = itens.reduce((soma, item) => {
+      if (!item.insumo || !item.quantidade) return soma
+      const valorPor100 = item.insumo[n.campo] || 0
+      // quantidade está em unidade_uso (g ou ml), valor nutricional é por 100g/ml
+      return soma + (valorPor100 * parseFloat(item.quantidade || 0)) / 100
+    }, 0)
+    // Dividir pelo rendimento para obter por porção/unidade
+    acc[n.campo] = form.rendimento > 0 ? totalNutriente / parseFloat(form.rendimento) : 0
+    return acc
+  }, {})
+
+  const temDadosNutricionais = Object.values(tabelaNutricional).some(v => v > 0)
+
   const taxaTotalIfood = (taxasIfood.comissao + taxasIfood.pagamento) / 100
   const custoComEmbalagemIfood = custoPorUnidade + (taxasIfood.embalagem || 0)
   const precoSugeridoIfood = custoComEmbalagemIfood / (1 - taxaTotalIfood) / (1 - margem / 100)
@@ -345,6 +372,30 @@ function ModalReceita({ receita, insumos, margemInicial = 40, onFechar, onSalvar
             </div>
           )}
 
+          {/* Tabela Nutricional no modal */}
+          {temDadosNutricionais && (
+            <div style={{ background: '#f9fafb', borderRadius: 12, padding: 14, border: '1px solid #e5e7eb' }}>
+              <p style={{ fontSize: 13, fontWeight: 600, color: '#2C2C2A', margin: '0 0 10px' }}>
+                🥗 Tabela Nutricional <span style={{ fontWeight: 400, color: '#9ca3af', fontSize: 12 }}>por {form.unidade_rendimento}</span>
+              </p>
+              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
+                <tbody>
+                  {NUTRIENTES.map((n, i) => tabelaNutricional[n.campo] > 0 && (
+                    <tr key={n.campo} style={{ borderBottom: '1px solid #f3f4f6', background: i % 2 === 0 ? '#fff' : '#f9fafb' }}>
+                      <td style={{ padding: '5px 8px', color: '#2C2C2A' }}>{n.label}</td>
+                      <td style={{ padding: '5px 8px', color: '#6b7280', textAlign: 'right', fontWeight: 600 }}>
+                        {tabelaNutricional[n.campo].toFixed(1)} {n.unidade}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+              <p style={{ fontSize: 11, color: '#9ca3af', margin: '8px 0 0' }}>
+                Valores calculados automaticamente com base nos insumos cadastrados.
+              </p>
+            </div>
+          )}
+
           <div>
             <LabelComDica dica="Anote o passo a passo, dicas de preparo, temperatura, tempo de forno, etc. Não afeta o cálculo de custo.">Observações / modo de preparo</LabelComDica>
             <textarea style={{ ...inputStyle, resize: 'vertical' }} rows={3} value={form.observacoes}
@@ -490,6 +541,17 @@ export default function AdminReceitas() {
             const custo = calcularCusto(rec)
             const custoPorUnidade = rec.rendimento > 0 ? custo / rec.rendimento : 0
             const precoSugerido = custoPorUnidade / (1 - margemPadrao / 100)
+            // Calcular nutrição da receita para listagem
+            const nutriReceitaTotais = {}
+            const NUTRIENTES_LISTA = ['kcal_por_100','carb_por_100','proteina_por_100','gordura_por_100','fibra_por_100']
+            NUTRIENTES_LISTA.forEach(campo => {
+              const total = (rec.receita_ingredientes || []).reduce((soma, ri) => {
+                const valorPor100 = ri.ingredientes?.[campo] || 0
+                return soma + (valorPor100 * ri.quantidade) / 100
+              }, 0)
+              nutriReceitaTotais[campo] = rec.rendimento > 0 ? total / rec.rendimento : 0
+            })
+            const temNutri = Object.values(nutriReceitaTotais).some(v => v > 0)
             const aberto = expandido === rec.id
             return (
               <div key={rec.id} style={{ background: '#fff', borderRadius: 14, border: '1px solid #f3f4f6', overflow: 'hidden' }}>
@@ -546,6 +608,18 @@ export default function AdminReceitas() {
                     </div>
                     {rec.observacoes && (
                       <p style={{ color: '#6b7280', fontSize: 13, marginTop: 10, fontStyle: 'italic' }}>📝 {rec.observacoes}</p>
+                    )}
+                    {temNutri && (
+                      <div style={{ marginTop: 12, padding: '10px 12px', background: '#f9fafb', borderRadius: 10, border: '1px solid #f3f4f6' }}>
+                        <p style={{ fontSize: 12, fontWeight: 600, color: '#2C2C2A', margin: '0 0 6px' }}>🥗 Por {rec.unidade_rendimento}:</p>
+                        <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap', fontSize: 12, color: '#6b7280' }}>
+                          {nutriReceitaTotais.kcal_por_100 > 0 && <span><strong>{nutriReceitaTotais.kcal_por_100.toFixed(0)} kcal</strong></span>}
+                          {nutriReceitaTotais.carb_por_100 > 0 && <span>Carb: <strong>{nutriReceitaTotais.carb_por_100.toFixed(1)}g</strong></span>}
+                          {nutriReceitaTotais.proteina_por_100 > 0 && <span>Prot: <strong>{nutriReceitaTotais.proteina_por_100.toFixed(1)}g</strong></span>}
+                          {nutriReceitaTotais.gordura_por_100 > 0 && <span>Gord: <strong>{nutriReceitaTotais.gordura_por_100.toFixed(1)}g</strong></span>}
+                          {nutriReceitaTotais.fibra_por_100 > 0 && <span>Fibras: <strong>{nutriReceitaTotais.fibra_por_100.toFixed(1)}g</strong></span>}
+                        </div>
+                      </div>
                     )}
                   </div>
                 )}
