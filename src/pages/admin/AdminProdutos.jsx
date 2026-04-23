@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import { useIsMobile } from '../../hooks/useIsMobile'
 import { supabase } from '../../lib/supabase'
 import { Plus, Edit2, Trash2, Eye, EyeOff, Star, X, Upload, Clock, BookOpen } from 'lucide-react'
 import { LabelComDica } from '../../components/Tooltip'
@@ -6,6 +7,7 @@ import { BotaoTabelaNutricional } from '../../components/TabelaNutricional'
 import toast from 'react-hot-toast'
 
 function ModalProduto({ produto, categorias, receitas, onFechar, onSalvar }) {
+  const isMobile = useIsMobile()
   const [form, setForm] = useState({
     nome: produto?.nome || '',
     descricao: produto?.descricao || '',
@@ -168,9 +170,9 @@ function ModalProduto({ produto, categorias, receitas, onFechar, onSalvar }) {
     : null
 
   return (
-    <div style={{ position: 'fixed', inset: 0, zIndex: 300, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24 }}>
+    <div style={{ position: 'fixed', inset: 0, zIndex: 300, display: 'flex', alignItems: isMobile ? 'flex-end' : 'center', justifyContent: 'center', padding: isMobile ? 0 : 24 }}>
       <div onClick={onFechar} style={{ position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.4)' }} />
-      <div style={{ position: 'relative', background: '#fff', borderRadius: 20, padding: 32, maxWidth: 580, width: '100%', maxHeight: '90vh', overflowY: 'auto', fontFamily: 'Inter, sans-serif' }}>
+      <div style={{ position: 'relative', background: '#fff', borderRadius: isMobile ? '20px 20px 0 0' : 20, padding: isMobile ? '20px 16px' : 32, maxWidth: 580, width: '100%', maxHeight: isMobile ? '95vh' : '90vh', overflowY: 'auto', fontFamily: 'Inter, sans-serif' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 }}>
           <h2 style={{ fontSize: 20, fontWeight: 700, color: '#2C2C2A', margin: 0 }}>{produto?.id ? 'Editar produto' : 'Novo produto'}</h2>
           <button onClick={onFechar} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#9ca3af' }}><X size={20} /></button>
@@ -195,7 +197,7 @@ function ModalProduto({ produto, categorias, receitas, onFechar, onSalvar }) {
             )}
           </div>
 
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
+          <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: 12 }}>
             <div style={{ gridColumn: '1 / -1' }}>
               <LabelComDica dica="Nome que aparece no cardápio para os clientes. Use algo claro e apetitoso. Ex: Brigadeiro Fit de Cacau 70%." obrigatorio>Nome do produto</LabelComDica>
               <input style={inputStyle} value={form.nome} onChange={e => atualizar('nome', e.target.value)} placeholder="Ex: Brigadeiro Fit" />
@@ -205,11 +207,11 @@ function ModalProduto({ produto, categorias, receitas, onFechar, onSalvar }) {
               <textarea style={{ ...inputStyle, resize: 'vertical' }} rows={2} value={form.descricao} onChange={e => atualizar('descricao', e.target.value)} placeholder="Descreva o produto..." />
             </div>
 
-            <div>
+            <div style={{ gridColumn: isMobile ? '1 / -1' : undefined }}>
               <LabelComDica dica="Preço que o cliente vai pagar. O sistema mostra a margem de lucro automaticamente ao comparar com o custo." obrigatorio>Preço de venda (R$)</LabelComDica>
               <input style={inputStyle} type="number" step="0.01" min="0" value={form.preco} onChange={e => atualizar('preco', e.target.value)} placeholder="0,00" />
             </div>
-            <div>
+            <div style={{ gridColumn: isMobile ? '1 / -1' : undefined }}>
               <LabelComDica dica="Custo de produção de 1 unidade deste produto. Preenchido automaticamente quando uma receita é vinculada. Inclui ingredientes, embalagens e materiais. Sempre recalculado com os preços atuais dos insumos ao abrir esta tela.">{recalculando ? '⏳ Recalculando custo...' : 'Custo por unidade (R$)'}</LabelComDica>
               <input style={inputStyle} type="number" step="0.0001" min="0" value={form.preco_custo}
                 onChange={e => atualizar('preco_custo', e.target.value)} placeholder="Preenchido pela receita" />
@@ -226,7 +228,7 @@ function ModalProduto({ produto, categorias, receitas, onFechar, onSalvar }) {
             </div>
           )}
 
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
+          <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: 12 }}>
             <div>
               <LabelComDica dica="Categoria do produto no cardápio. Ajuda os clientes a filtrar o que procuram. Ex: Docinhos, Bolos, Granolas.">Categoria</LabelComDica>
               <select style={inputStyle} value={form.categoria_id} onChange={e => atualizar('categoria_id', e.target.value)}>
@@ -300,6 +302,7 @@ function ModalProduto({ produto, categorias, receitas, onFechar, onSalvar }) {
 }
 
 export default function AdminProdutos() {
+  const isMobile = useIsMobile()
   const [produtos, setProdutos] = useState([])
   const [categorias, setCategorias] = useState([])
   const [receitas, setReceitas] = useState([])
@@ -413,7 +416,7 @@ export default function AdminProdutos() {
             <p style={{ fontSize: 12, color: '#92400e', margin: '12px 0 10px' }}>
               Configure as taxas do iFood para ver a margem real e o preço sugerido de cada produto na plataforma.
             </p>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 12 }}>
+            <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : 'repeat(3, 1fr)', gap: 10 }}>
               <div>
                 <label style={{ fontSize: 12, color: '#6b7280', fontWeight: 500, display: 'block', marginBottom: 4 }}>Comissão iFood (%)</label>
                 <input type="number" step="0.1" min="0" max="40" value={taxasIfood.comissao}
@@ -469,7 +472,7 @@ export default function AdminProdutos() {
         </button>
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 12, marginBottom: 24 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 10, marginBottom: 20 }}>
         {[
           { key: 'todos', label: 'Total', valor: produtos.length, cor: '#6b7280' },
           { key: 'ativos', label: 'Ativos', valor: produtos.filter(p => p.ativo).length, cor: '#10b981' },

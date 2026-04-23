@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import { useIsMobile } from '../../hooks/useIsMobile'
 import { supabase } from '../../lib/supabase'
 import { Plus, Edit2, Trash2, X, ChevronDown, ChevronUp, BookOpen } from 'lucide-react'
 import { LabelComDica } from '../../components/Tooltip'
@@ -93,6 +94,7 @@ function BuscaInsumo({ insumos, value, onChange, inputStyle }) {
 }
 
 function ModalReceita({ receita, insumos, margemInicial = 40, onFechar, onSalvar }) {
+  const isMobile = useIsMobile()
   const [form, setForm] = useState({
     nome: receita?.nome || '',
     descricao: receita?.descricao || '',
@@ -232,9 +234,9 @@ function ModalReceita({ receita, insumos, margemInicial = 40, onFechar, onSalvar
   }
 
   return (
-    <div style={{ position: 'fixed', inset: 0, zIndex: 300, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24 }}>
+    <div style={{ position: 'fixed', inset: 0, zIndex: 300, display: 'flex', alignItems: isMobile ? 'flex-end' : 'center', justifyContent: 'center', padding: isMobile ? 0 : 24 }}>
       <div onClick={onFechar} style={{ position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.4)' }} />
-      <div style={{ position: 'relative', background: '#fff', borderRadius: 20, padding: 32, maxWidth: 640, width: '100%', maxHeight: '92vh', overflowY: 'auto', fontFamily: 'Inter, sans-serif' }}>
+      <div style={{ position: 'relative', background: '#fff', borderRadius: isMobile ? '20px 20px 0 0' : 20, padding: isMobile ? '20px 16px' : 32, maxWidth: 640, width: '100%', maxHeight: isMobile ? '95vh' : '92vh', overflowY: 'auto', fontFamily: 'Inter, sans-serif', marginTop: isMobile ? 'auto' : undefined }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 }}>
           <h2 style={{ fontSize: 18, fontWeight: 700, color: '#2C2C2A', margin: 0 }}>{receita?.id ? 'Editar receita' : 'Nova receita'}</h2>
           <button onClick={onFechar} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#9ca3af' }}><X size={20} /></button>
@@ -245,7 +247,7 @@ function ModalReceita({ receita, insumos, margemInicial = 40, onFechar, onSalvar
             <LabelComDica dica="Use o mesmo nome que vai usar no produto. Ex: Brigadeiro Fit de Cacau. Isso facilita a vinculação e o cálculo de custos." obrigatorio>Nome da receita</LabelComDica>
             <input style={inputStyle} value={form.nome} onChange={e => setForm(f => ({...f, nome: e.target.value}))} placeholder="Ex: Brigadeiro Fit de Cacau" />
           </div>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 12 }}>
+          <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr 1fr' : '1fr 1fr 1fr', gap: 10 }}>
             <div>
               <LabelComDica dica="Quantas unidades essa receita produz no total. Ex: se faz 30 brigadeiros, coloque 30. Se faz 1 bolo inteiro, coloque 1.">Rendimento</LabelComDica>
               <input style={inputStyle} type="number" min="1" value={form.rendimento} onChange={e => setForm(f => ({...f, rendimento: e.target.value}))} />
@@ -278,23 +280,34 @@ function ModalReceita({ receita, insumos, margemInicial = 40, onFechar, onSalvar
             ) : (
               <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
                 {itens.map((item, idx) => (
-                  <div key={idx} style={{ display: 'grid', gridTemplateColumns: '2fr 1fr auto', gap: 8, alignItems: 'center' }}>
+                  <div key={idx} style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr auto' : '2fr 1fr auto', gap: 8, alignItems: 'center' }}>
                     <BuscaInsumo
                       insumos={insumos}
                       value={item.ingrediente_id}
                       onChange={val => atualizarItem(idx, 'ingrediente_id', val)}
                       inputStyle={inputStyle}
                     />
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-                      <input style={{ ...inputStyle, width: '70%' }} type="number" min="0" step="0.1" placeholder="Qtd"
-                        value={item.quantidade} onChange={e => atualizarItem(idx, 'quantidade', e.target.value)} />
-                      <span style={{ fontSize: 12, color: '#9ca3af', whiteSpace: 'nowrap' }}>
-                        {item.insumo?.unidade_uso || '—'}
-                      </span>
-                    </div>
+                    {!isMobile && (
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                        <input style={{ ...inputStyle, width: '70%' }} type="number" min="0" step="0.1" placeholder="Qtd"
+                          value={item.quantidade} onChange={e => atualizarItem(idx, 'quantidade', e.target.value)} />
+                        <span style={{ fontSize: 12, color: '#9ca3af', whiteSpace: 'nowrap' }}>
+                          {item.insumo?.unidade_uso || '—'}
+                        </span>
+                      </div>
+                    )}
                     <button onClick={() => removerItem(idx)} style={{ width: 32, height: 32, borderRadius: '50%', border: '1px solid #fecaca', background: '#fef2f2', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#ef4444', flexShrink: 0 }}>
                       <X size={14} />
                     </button>
+                    {isMobile && (
+                      <div style={{ gridColumn: '1 / -1', display: 'flex', alignItems: 'center', gap: 8 }}>
+                        <input style={{ ...inputStyle, flex: 1 }} type="number" min="0" step="0.1" placeholder="Quantidade"
+                          value={item.quantidade} onChange={e => atualizarItem(idx, 'quantidade', e.target.value)} />
+                        <span style={{ fontSize: 13, color: '#9ca3af', whiteSpace: 'nowrap', minWidth: 40 }}>
+                          {item.insumo?.unidade_uso || '—'}
+                        </span>
+                      </div>
+                    )}
                   </div>
                 ))}
               </div>
@@ -305,7 +318,7 @@ function ModalReceita({ receita, insumos, margemInicial = 40, onFechar, onSalvar
           {custoTotal > 0 && (
             <div style={{ background: '#f0fdf4', borderRadius: 14, padding: 16, border: '1px solid #bbf7d0' }}>
               <p style={{ fontSize: 13, fontWeight: 600, color: '#15803d', margin: '0 0 12px' }}>💰 Análise de custo</p>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 12, marginBottom: 12 }}>
+              <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr 1fr', gap: 10, marginBottom: 12 }}>
                 <div style={{ textAlign: 'center' }}>
                   <p style={{ fontSize: 18, fontWeight: 800, color: '#15803d', margin: '0 0 2px' }}>R$ {custoTotal.toFixed(2).replace('.', ',')}</p>
                   <p style={{ fontSize: 11, color: '#6b7280', margin: 0 }}>Custo total</p>
@@ -333,7 +346,7 @@ function ModalReceita({ receita, insumos, margemInicial = 40, onFechar, onSalvar
                 </div>
                 {mostrarIfood && (
                   <div>
-                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 8, marginBottom: 10 }}>
+                    <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr 1fr', gap: 8, marginBottom: 10 }}>
                       <div>
                         <label style={{ fontSize: 11, color: '#6b7280', display: 'block', marginBottom: 3 }}>Comissão (%)</label>
                         <input type="number" step="0.1" min="0" max="40" value={taxasIfood.comissao}

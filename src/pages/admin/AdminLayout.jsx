@@ -164,7 +164,7 @@ export default function AdminLayout() {
           </div>
         </header>
 
-        <main style={{ flex: 1, padding: '32px 24px', maxWidth: 1200, width: '100%', margin: '0 auto', boxSizing: 'border-box' }}>
+        <main style={{ flex: 1, padding: 'clamp(16px, 3vw, 32px) clamp(12px, 3vw, 24px)', maxWidth: 1200, width: '100%', margin: '0 auto', boxSizing: 'border-box' }}>
           <Outlet />
         </main>
       </div>

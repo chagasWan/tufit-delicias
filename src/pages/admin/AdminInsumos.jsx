@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import { useIsMobile } from '../../hooks/useIsMobile'
 import { supabase } from '../../lib/supabase'
 import { Plus, Edit2, Trash2, X, AlertTriangle, Package, Search } from 'lucide-react'
 import { LabelComDica } from '../../components/Tooltip'
@@ -14,6 +15,7 @@ const CATEGORIAS = [
 ]
 
 function ModalInsumo({ insumo, onFechar, onSalvar }) {
+  const isMobile = useIsMobile()
   const [form, setForm] = useState({
     nome: insumo?.nome || '',
     categoria: insumo?.categoria || 'ingrediente',
@@ -87,9 +89,9 @@ function ModalInsumo({ insumo, onFechar, onSalvar }) {
   }
 
   return (
-    <div style={{ position: 'fixed', inset: 0, zIndex: 300, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24 }}>
+    <div style={{ position: 'fixed', inset: 0, zIndex: 300, display: 'flex', alignItems: isMobile ? 'flex-end' : 'center', justifyContent: 'center', padding: isMobile ? 0 : 24 }}>
       <div onClick={onFechar} style={{ position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.4)' }} />
-      <div style={{ position: 'relative', background: '#fff', borderRadius: 20, padding: 32, maxWidth: 520, width: '100%', maxHeight: '92vh', overflowY: 'auto', fontFamily: 'Inter, sans-serif' }}>
+      <div style={{ position: 'relative', background: '#fff', borderRadius: isMobile ? '20px 20px 0 0' : 20, padding: isMobile ? '20px 16px' : 32, maxWidth: 520, width: '100%', maxHeight: isMobile ? '95vh' : '92vh', overflowY: 'auto', fontFamily: 'Inter, sans-serif' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 }}>
           <h2 style={{ fontSize: 18, fontWeight: 700, color: '#2C2C2A', margin: 0 }}>{insumo?.id ? 'Editar insumo' : 'Novo insumo'}</h2>
           <button onClick={onFechar} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#9ca3af' }}><X size={20} /></button>
@@ -120,7 +122,7 @@ function ModalInsumo({ insumo, onFechar, onSalvar }) {
           </div>
 
           {/* Preço e unidades */}
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+          <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: 10 }}>
             <div>
               <LabelComDica dica="Como você compra esse insumo? Ex: kg, unidade, pacote. Para uma lata de leite condensado, seria unidade.">Unidade de compra</LabelComDica>
               <select style={inputStyle} value={form.unidade_compra} onChange={e => setForm(f => ({ ...f, unidade_compra: e.target.value }))}>
@@ -135,7 +137,7 @@ function ModalInsumo({ insumo, onFechar, onSalvar }) {
           </div>
 
           {/* Conversão (só relevante se não for unidade simples) */}
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+          <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: 10 }}>
             <div>
               <LabelComDica dica="Quantas unidades de uso cabem em 1 unidade de compra. Ex: 1 kg = 1000g, então coloque 1000. 1 lata de leite condensado 395g = 395, coloque 395.">Quantidade por unidade comprada</LabelComDica>
               <input style={inputStyle} type="number" value={form.quantidade_por_unidade}
@@ -158,7 +160,7 @@ function ModalInsumo({ insumo, onFechar, onSalvar }) {
           )}
 
           {/* Estoque */}
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+          <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: 10 }}>
             <div>
               <LabelComDica dica="Quantas unidades de compra você tem agora. Ex: se tem 2 latas, coloque 2. Se tem meio pacote de 1kg, coloque 0,5.">Estoque atual ({form.unidade_compra})</LabelComDica>
               <input style={inputStyle} type="number" value={form.estoque_atual}
@@ -178,7 +180,7 @@ function ModalInsumo({ insumo, onFechar, onSalvar }) {
               <p style={{ fontSize: 13, fontWeight: 600, color: '#15803d', margin: '0 0 10px' }}>
                 🥗 Informações Nutricionais <span style={{ fontWeight: 400, color: '#6b7280', fontSize: 12 }}>(por 100g/ml — opcional)</span>
               </p>
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 10 }}>
+              <div style={{ display: 'grid', gridTemplateColumns: isMobile ? 'repeat(2, 1fr)' : 'repeat(3, 1fr)', gap: 10 }}>
                 {[
                   { campo: 'kcal_por_100', label: 'Calorias (kcal)' },
                   { campo: 'carb_por_100', label: 'Carboidratos (g)' },
