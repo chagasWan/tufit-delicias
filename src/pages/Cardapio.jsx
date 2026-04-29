@@ -1,317 +1,616 @@
 import { useState, useEffect } from 'react'
-import { BotaoTabelaNutricional } from '../components/TabelaNutricional'
-import { useIsMobile } from '../hooks/useIsMobile'
 import { useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
-import { ShoppingBag, Heart, Search, Filter, ChevronDown, MessageCircle, ArrowLeft } from 'lucide-react'
 import { useCarrinho } from '../contexts/CarrinhoContext'
+import { BotaoTabelaNutricional } from '../components/TabelaNutricional'
+import { ShoppingBag, Search, X, Star, Clock, ChevronLeft, Filter } from 'lucide-react'
 
-const iconeInstagram = (
-  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-    <rect x="2" y="2" width="20" height="20" rx="5" ry="5"/>
-    <path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z"/>
-    <line x1="17.5" y1="6.5" x2="17.51" y2="6.5"/>
-  </svg>
-)
-
-const produtosMock = [
-  { id: '1', nome: 'Brigadeiro Fit', descricao: 'Brigadeiro cremoso sem açúcar refinado, feito com cacau 70% e adoçante natural.', preco: 4.50, categoria_id: 'docinhos', ingredientes_destaque: ['Sem açúcar', 'Sem glúten'], destaque: true, ativo: true, prazo_minimo_horas: 4 },
-  { id: '2', nome: 'Cupcake Zero', descricao: 'Cupcake fofinho sem glúten e sem lactose com cobertura de cream cheese fit.', preco: 8.00, categoria_id: 'bolos', ingredientes_destaque: ['Sem glúten', 'Sem lactose'], destaque: true, ativo: true, prazo_minimo_horas: 8 },
-  { id: '3', nome: 'Bolo de Cenoura Fit', descricao: 'Bolo integral de cenoura com cobertura de chocolate meio amargo. Rende 10 fatias.', preco: 45.00, categoria_id: 'bolos', ingredientes_destaque: ['Integral', 'Sem lactose'], destaque: false, ativo: true, prazo_minimo_horas: 24 },
-  { id: '4', nome: 'Torta de Morango', descricao: 'Torta com base de aveia, recheio de cream cheese fit e morangos frescos.', preco: 65.00, categoria_id: 'tortas', ingredientes_destaque: ['Sem açúcar', 'Sem glúten'], destaque: true, ativo: true, prazo_minimo_horas: 48 },
-  { id: '5', nome: 'Cookies de Aveia', descricao: 'Cookies crocantes de aveia com gotas de chocolate 70%. Pacote com 6 unidades.', preco: 18.00, categoria_id: 'docinhos', ingredientes_destaque: ['Integral', 'Sem lactose'], destaque: false, ativo: true, prazo_minimo_horas: 4 },
-  { id: '6', nome: 'Bolo Decorado Fit', descricao: 'Bolo personalizado para festas, sem açúcar e sem glúten. Consulte sabores disponíveis.', preco: 120.00, categoria_id: 'bolos', ingredientes_destaque: ['Sem açúcar', 'Sem glúten', 'Personalizado'], destaque: true, ativo: true, prazo_minimo_horas: 120 },
-]
-
-const categoriasMock = [
-  { id: 'todos', nome: 'Todos' },
-  { id: 'docinhos', nome: 'Docinhos' },
-  { id: 'bolos', nome: 'Bolos' },
-  { id: 'tortas', nome: 'Tortas' },
-]
-
-function formatarPrazo(horas) {
-  if (horas < 24) return horas + 'h de antecedência'
-  const dias = Math.floor(horas / 24)
-  return dias + (dias === 1 ? ' dia de antecedência' : ' dias de antecedência')
+const CORES = {
+  rosa: '#C94F7C',
+  rosaClaro: '#FBEAF0',
+  rosaMedio: '#F2A7C3',
+  creme: '#FDF6EE',
+  cremeMedio: '#F5E6D3',
+  marrom: '#5C3D2E',
+  marromClaro: '#8B6355',
+  verde: '#4A7C59',
+  dourado: '#C9913A',
+  texto: '#2C1810',
+  textoClaro: '#7A5C4F',
 }
 
-function ProdutoCard({ produto, onPedir }) {
-  const [hover, setHover] = useState(false)
-  const [fotoExpandida, setFotoExpandida] = useState(false)
+const estilos = `
+  @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,600;0,700;1,400;1,600&family=Lato:wght@300;400;700&display=swap');
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  .cardapio-page {
+    font-family: 'Lato', sans-serif;
+    background: ${CORES.creme};
+    color: ${CORES.texto};
+    min-height: 100vh;
+  }
+
+  .cardapio-page h1, .cardapio-page h2, .cardapio-page h3 {
+    font-family: 'Playfair Display', serif;
+  }
+
+  /* Navbar */
+  .navbar {
+    position: sticky;
+    top: 0;
+    z-index: 100;
+    background: rgba(253,246,238,0.95);
+    backdrop-filter: blur(12px);
+    border-bottom: 1px solid ${CORES.cremeMedio};
+    padding: 12px 20px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+
+  .btn-voltar {
+    background: white;
+    border: 1.5px solid ${CORES.cremeMedio};
+    border-radius: 50%;
+    width: 38px;
+    height: 38px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    color: ${CORES.marrom};
+    flex-shrink: 0;
+    transition: all 0.2s;
+  }
+
+  .btn-voltar:hover { background: ${CORES.rosaClaro}; border-color: ${CORES.rosa}; }
+
+  .navbar-logo {
+    height: 36px;
+    object-fit: contain;
+    flex-shrink: 0;
+  }
+
+  .navbar-titulo {
+    font-family: 'Playfair Display', serif;
+    font-size: 18px;
+    color: ${CORES.marrom};
+    flex: 1;
+  }
+
+  .btn-carrinho {
+    position: relative;
+    background: ${CORES.rosa};
+    color: white;
+    border: none;
+    border-radius: 24px;
+    padding: 9px 16px;
+    font-family: 'Lato', sans-serif;
+    font-weight: 700;
+    font-size: 13px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    transition: all 0.2s;
+    box-shadow: 0 4px 14px rgba(201,79,124,0.3);
+    flex-shrink: 0;
+  }
+
+  .btn-carrinho:hover { transform: translateY(-1px); }
+
+  .badge-qtd {
+    background: white;
+    color: ${CORES.rosa};
+    border-radius: 50%;
+    width: 18px;
+    height: 18px;
+    font-size: 10px;
+    font-weight: 900;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  /* Busca e filtros */
+  .busca-wrap {
+    background: white;
+    border-bottom: 1px solid ${CORES.cremeMedio};
+    padding: 14px 20px;
+  }
+
+  .busca-input-wrap {
+    position: relative;
+    margin-bottom: 14px;
+  }
+
+  .busca-icon {
+    position: absolute;
+    left: 14px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: ${CORES.textoClaro};
+  }
+
+  .busca-input {
+    width: 100%;
+    padding: 11px 14px 11px 42px;
+    border-radius: 14px;
+    border: 1.5px solid ${CORES.cremeMedio};
+    background: ${CORES.creme};
+    font-family: 'Lato', sans-serif;
+    font-size: 14px;
+    color: ${CORES.texto};
+    outline: none;
+    transition: border-color 0.2s;
+  }
+
+  .busca-input:focus { border-color: ${CORES.rosaMedio}; }
+  .busca-input::placeholder { color: ${CORES.textoClaro}; }
+
+  .busca-limpar {
+    position: absolute;
+    right: 12px;
+    top: 50%;
+    transform: translateY(-50%);
+    background: none;
+    border: none;
+    cursor: pointer;
+    color: ${CORES.textoClaro};
+    display: flex;
+    align-items: center;
+  }
+
+  .categorias-scroll {
+    display: flex;
+    gap: 8px;
+    overflow-x: auto;
+    padding-bottom: 2px;
+    scrollbar-width: none;
+  }
+
+  .categorias-scroll::-webkit-scrollbar { display: none; }
+
+  .cat-btn {
+    white-space: nowrap;
+    padding: 7px 16px;
+    border-radius: 20px;
+    border: 1.5px solid transparent;
+    font-family: 'Lato', sans-serif;
+    font-size: 13px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: all 0.2s;
+    background: ${CORES.creme};
+    color: ${CORES.textoClaro};
+    border-color: ${CORES.cremeMedio};
+  }
+
+  .cat-btn.ativo {
+    background: ${CORES.rosa};
+    color: white;
+    border-color: ${CORES.rosa};
+  }
+
+  /* Grid de produtos */
+  .produtos-container {
+    max-width: 900px;
+    margin: 0 auto;
+    padding: 24px 16px;
+  }
+
+  .resultados-texto {
+    font-size: 13px;
+    color: ${CORES.textoClaro};
+    margin-bottom: 20px;
+    font-weight: 300;
+  }
+
+  .resultados-texto strong { color: ${CORES.marrom}; }
+
+  .produtos-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+    gap: 18px;
+  }
+
+  /* Card */
+  .produto-card {
+    background: white;
+    border-radius: 20px;
+    overflow: hidden;
+    box-shadow: 0 2px 14px rgba(92,61,46,0.07);
+    transition: all 0.3s;
+    border: 1px solid rgba(92,61,46,0.06);
+  }
+
+  .produto-card:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 10px 28px rgba(92,61,46,0.13);
+  }
+
+  .produto-foto-wrap {
+    height: 180px;
+    background: ${CORES.rosaClaro};
+    position: relative;
+    overflow: hidden;
+  }
+
+  .produto-foto {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    transition: transform 0.4s;
+    cursor: zoom-in;
+  }
+
+  .produto-card:hover .produto-foto { transform: scale(1.05); }
+
+  .produto-placeholder {
+    width: 100%;
+    height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 50px;
+  }
+
+  .destaque-badge {
+    position: absolute;
+    top: 10px;
+    left: 10px;
+    background: ${CORES.dourado};
+    color: white;
+    font-size: 10px;
+    font-weight: 700;
+    padding: 3px 9px;
+    border-radius: 20px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    display: flex;
+    align-items: center;
+    gap: 3px;
+  }
+
+  .produto-corpo {
+    padding: 16px;
+  }
+
+  .produto-nome {
+    font-family: 'Playfair Display', serif;
+    font-size: 16px;
+    font-weight: 600;
+    color: ${CORES.marrom};
+    margin-bottom: 5px;
+  }
+
+  .produto-desc {
+    font-size: 12px;
+    color: ${CORES.textoClaro};
+    line-height: 1.5;
+    font-weight: 300;
+    margin-bottom: 10px;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+
+  .produto-tags {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+    margin-bottom: 10px;
+  }
+
+  .produto-tag {
+    background: ${CORES.rosaClaro};
+    color: ${CORES.rosa};
+    font-size: 10px;
+    font-weight: 700;
+    padding: 2px 8px;
+    border-radius: 12px;
+    text-transform: uppercase;
+    letter-spacing: 0.3px;
+  }
+
+  .produto-rodape {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-top: 6px;
+  }
+
+  .produto-preco {
+    font-family: 'Playfair Display', serif;
+    font-size: 20px;
+    font-weight: 700;
+    color: ${CORES.rosa};
+  }
+
+  .btn-adicionar {
+    background: ${CORES.rosa};
+    color: white;
+    border: none;
+    border-radius: 18px;
+    padding: 9px 16px;
+    font-family: 'Lato', sans-serif;
+    font-weight: 700;
+    font-size: 12px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    transition: all 0.2s;
+  }
+
+  .btn-adicionar:hover { background: ${CORES.marrom}; }
+  .btn-adicionar.adicionado { background: #4A7C59; }
+
+  .prazo-info {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 11px;
+    color: ${CORES.textoClaro};
+    margin-top: 8px;
+    font-weight: 300;
+  }
+
+  /* Vazio */
+  .vazio {
+    text-align: center;
+    padding: 64px 24px;
+    color: ${CORES.textoClaro};
+  }
+
+  .vazio-emoji { font-size: 56px; margin-bottom: 16px; }
+
+  .vazio-titulo {
+    font-family: 'Playfair Display', serif;
+    font-size: 22px;
+    color: ${CORES.marrom};
+    margin-bottom: 8px;
+  }
+
+  /* Modal foto */
+  .foto-modal {
+    position: fixed;
+    inset: 0;
+    z-index: 500;
+    background: rgba(0,0,0,0.88);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 24px;
+    cursor: zoom-out;
+  }
+
+  .foto-modal img {
+    max-width: 90vw;
+    max-height: 85vh;
+    border-radius: 16px;
+    object-fit: contain;
+  }
+
+  .foto-modal-fechar {
+    position: absolute;
+    top: 20px;
+    right: 20px;
+    background: rgba(255,255,255,0.15);
+    border: none;
+    border-radius: 50%;
+    width: 42px;
+    height: 42px;
+    color: white;
+    font-size: 20px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .foto-modal-nome {
+    position: absolute;
+    bottom: 24px;
+    left: 0;
+    right: 0;
+    text-align: center;
+    color: white;
+    font-family: 'Playfair Display', serif;
+    font-size: 18px;
+    font-style: italic;
+    text-shadow: 0 2px 8px rgba(0,0,0,0.5);
+  }
+`
+
+function ProdutoCard({ produto, onAdicionar }) {
+  const [fotoAberta, setFotoAberta] = useState(false)
+  const [adicionado, setAdicionado] = useState(false)
+
+  const prazo = produto.prazo_minimo_horas
+  const prazoTexto = prazo ? (prazo < 24 ? `${prazo}h de antecedência` : `${Math.floor(prazo / 24)} dia(s)`) : null
+
+  function handleAdicionar() {
+    onAdicionar(produto)
+    setAdicionado(true)
+    setTimeout(() => setAdicionado(false), 1500)
+  }
 
   return (
-    <div
-      onMouseEnter={() => setHover(true)}
-      onMouseLeave={() => setHover(false)}
-      style={{
-        background: '#fff',
-        borderRadius: 20,
-        overflow: 'hidden',
-        border: '1px solid #fce7f3',
-        transition: 'all 0.2s',
-        transform: hover ? 'translateY(-4px)' : 'none',
-        boxShadow: hover ? '0 12px 32px rgba(212,83,126,0.15)' : '0 2px 8px rgba(0,0,0,0.04)',
-        display: 'flex',
-        flexDirection: 'column',
-      }}
-    >
-      {/* Modal foto expandida */}
-      {fotoExpandida && produto.foto_url && (
-        <div onClick={() => setFotoExpandida(false)} style={{ position: 'fixed', inset: 0, zIndex: 500, background: 'rgba(0,0,0,0.85)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24, cursor: 'zoom-out' }}>
-          <img src={produto.foto_url} alt={produto.nome} style={{ maxWidth: '90vw', maxHeight: '85vh', borderRadius: 16, objectFit: 'contain', boxShadow: '0 20px 60px rgba(0,0,0,0.5)' }} />
-          <div style={{ position: 'absolute', top: 20, right: 20, background: 'rgba(255,255,255,0.15)', borderRadius: '50%', width: 40, height: 40, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontSize: 20, cursor: 'pointer' }}>✕</div>
-          <div style={{ position: 'absolute', bottom: 24, left: 0, right: 0, textAlign: 'center', color: '#fff', fontSize: 15, fontWeight: 600, textShadow: '0 2px 4px rgba(0,0,0,0.5)' }}>{produto.nome}</div>
+    <>
+      {fotoAberta && produto.foto_url && (
+        <div className="foto-modal" onClick={() => setFotoAberta(false)}>
+          <img src={produto.foto_url} alt={produto.nome} />
+          <button className="foto-modal-fechar">✕</button>
+          <div className="foto-modal-nome">{produto.nome}</div>
         </div>
       )}
 
-      <div style={{ height: 200, background: '#FBEAF0', display: 'flex', alignItems: 'center', justifyContent: 'center', position: 'relative', overflow: 'hidden' }}>
-        {produto.foto_url ? (
-          <img src={produto.foto_url} alt={produto.nome} onClick={() => setFotoExpandida(true)} style={{ width: '100%', height: '100%', objectFit: 'cover', transition: 'transform 0.3s', transform: hover ? 'scale(1.05)' : 'scale(1)', cursor: 'zoom-in' }} />
-        ) : (
-          <span style={{ fontSize: 64 }}>🍰</span>
-        )}
-        {produto.destaque && (
-          <div style={{ position: 'absolute', top: 12, left: 12, background: '#D4537E', color: '#fff', fontSize: 11, padding: '4px 12px', borderRadius: 20, fontWeight: 600 }}>
-            ⭐ Destaque
-          </div>
-        )}
-        <div style={{ position: 'absolute', top: 12, right: 12, background: '#fff', borderRadius: 10, padding: '4px 10px', fontSize: 11, color: '#9ca3af', fontWeight: 500 }}>
-          ⏱ {formatarPrazo(produto.prazo_minimo_horas)}
+      <div className="produto-card">
+        <div className="produto-foto-wrap">
+          {produto.foto_url
+            ? <img src={produto.foto_url} alt={produto.nome} className="produto-foto" onClick={() => setFotoAberta(true)} />
+            : <div className="produto-placeholder">🍰</div>
+          }
+          {produto.destaque && (
+            <div className="destaque-badge"><Star size={9} fill="white" /> Destaque</div>
+          )}
         </div>
-      </div>
 
-      <div style={{ padding: 20, display: 'flex', flexDirection: 'column', flex: 1 }}>
-        <h3 style={{ fontWeight: 700, color: '#2C2C2A', fontSize: 17, marginBottom: 6 }}>{produto.nome}</h3>
-        {produto.descricao && (
-          <p style={{ color: '#6b7280', fontSize: 13, lineHeight: 1.6, marginBottom: 12, flex: 1 }}>{produto.descricao}</p>
-        )}
-        {produto.ingredientes_destaque?.length > 0 && (
-          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, marginBottom: 14 }}>
-            {produto.ingredientes_destaque.map(tag => (
-              <span key={tag} style={{ background: '#FBEAF0', color: '#993556', fontSize: 11, padding: '3px 10px', borderRadius: 20, fontWeight: 500 }}>{tag}</span>
-            ))}
+        <div className="produto-corpo">
+          <div className="produto-nome">{produto.nome}</div>
+          {produto.descricao && <div className="produto-desc">{produto.descricao}</div>}
+
+          {produto.ingredientes_destaque?.length > 0 && (
+            <div className="produto-tags">
+              {produto.ingredientes_destaque.map(tag => (
+                <span key={tag} className="produto-tag">{tag}</span>
+              ))}
+            </div>
+          )}
+
+          {produto.nutricao && Object.values(produto.nutricao).some(v => v > 0) && (
+            <div style={{ marginBottom: 10 }}>
+              <BotaoTabelaNutricional nutricao={produto.nutricao} nomeProduto={produto.nome} />
+            </div>
+          )}
+
+          <div className="produto-rodape">
+            <div className="produto-preco">R$ {produto.preco?.toFixed(2).replace('.', ',')}</div>
+            <button className={`btn-adicionar ${adicionado ? 'adicionado' : ''}`} onClick={handleAdicionar}>
+              <ShoppingBag size={13} />
+              {adicionado ? '✓ Adicionado' : 'Adicionar'}
+            </button>
           </div>
-        )}
-        {produto.nutricao && Object.values(produto.nutricao).some(v => v > 0) && (
-          <div style={{ marginBottom: 12 }}>
-            <BotaoTabelaNutricional nutricao={produto.nutricao} nomeProduto={produto.nome} />
-          </div>
-        )}
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: 'auto' }}>
-          <span style={{ color: '#D4537E', fontWeight: 800, fontSize: 22 }}>
-            R$ {produto.preco?.toFixed(2).replace('.', ',')}
-          </span>
-          <button
-            onClick={() => onPedir(produto)}
-            style={{ background: '#D4537E', color: '#fff', padding: '10px 20px', borderRadius: 24, fontSize: 14, fontWeight: 600, border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6, transition: 'background 0.2s' }}
-            onMouseEnter={e => e.currentTarget.style.background = '#993556'}
-            onMouseLeave={e => e.currentTarget.style.background = '#D4537E'}
-          >
-            <ShoppingBag size={14} />
-            Pedir
-          </button>
+
+          {prazoTexto && (
+            <div className="prazo-info">
+              <Clock size={10} /> {prazoTexto}
+            </div>
+          )}
         </div>
       </div>
-    </div>
+    </>
   )
 }
 
 export default function Cardapio() {
   const [produtos, setProdutos] = useState([])
   const [categorias, setCategorias] = useState([])
-  const [categoriaSelecionada, setCategoriaSelecionada] = useState('todos')
   const [busca, setBusca] = useState('')
+  const [categoriaAtiva, setCategoriaAtiva] = useState('todas')
   const [loading, setLoading] = useState(true)
   const navigate = useNavigate()
-  const { adicionarItem } = useCarrinho()
-  const isMobile = useIsMobile()
-  const whatsapp = '5562999049716'
+  const { adicionarItem, itens } = useCarrinho()
+
+  const totalCarrinho = itens.reduce((acc, i) => acc + i.quantidade, 0)
 
   useEffect(() => {
-    async function buscarDados() {
-      const [{ data: prods }, { data: cats }] = await Promise.all([
-        supabase.from('produtos').select('*').eq('ativo', true).order('destaque', { ascending: false }),
-        supabase.from('categorias').select('*').eq('ativo', true).order('ordem')
-      ])
-      if (prods && prods.length > 0) {
-        setProdutos(prods)
-        const todasCats = [{ id: 'todos', nome: 'Todos' }, ...(cats || [])]
-        setCategorias(todasCats)
-      } else {
-        setProdutos(produtosMock)
-        setCategorias(categoriasMock)
-      }
+    Promise.all([
+      supabase.from('produtos').select('*').eq('ativo', true).order('destaque', { ascending: false }).order('nome'),
+      supabase.from('categorias').select('*').eq('ativo', true).order('ordem'),
+    ]).then(([{ data: p }, { data: c }]) => {
+      setProdutos(p || [])
+      setCategorias(c || [])
       setLoading(false)
-    }
-    buscarDados()
+    })
   }, [])
 
-  const produtosFiltrados = produtos.filter(p => {
-    const passaCategoria = categoriaSelecionada === 'todos' || p.categoria_id === categoriaSelecionada
-    const passaBusca = p.nome.toLowerCase().includes(busca.toLowerCase()) || p.descricao?.toLowerCase().includes(busca.toLowerCase())
-    return passaCategoria && passaBusca
+  const filtrados = produtos.filter(p => {
+    const buscaOk = !busca.trim() || p.nome.toLowerCase().includes(busca.toLowerCase()) || p.descricao?.toLowerCase().includes(busca.toLowerCase())
+    const catOk = categoriaAtiva === 'todas' || p.categoria_id === categoriaAtiva
+    return buscaOk && catOk
   })
 
-  function handlePedir(produto) {
-    adicionarItem(produto)
-  }
-
   return (
-    <div style={{ minHeight: '100vh', background: '#FDF8F0', fontFamily: 'Inter, sans-serif' }}>
+    <>
+      <style>{estilos}</style>
+      <div className="cardapio-page">
 
-      <nav style={{ background: 'rgba(255,255,255,0.95)', backdropFilter: 'blur(8px)', position: 'sticky', top: 0, zIndex: 50, borderBottom: '1px solid #fce7f3' }}>
-        <div style={{ maxWidth: 1152, margin: '0 auto', padding: isMobile ? '12px 16px' : '12px 24px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
-            <button
-              onClick={() => navigate('/')}
-              style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#6b7280', display: 'flex', alignItems: 'center', gap: 4, fontSize: 14 }}
-            >
-              <ArrowLeft size={18} />
-              Voltar
-            </button>
-            <div style={{ width: 1, height: 20, background: '#fce7f3' }} />
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-              <div style={{ width: 28, height: 28, background: '#D4537E', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                <Heart size={14} color="#fff" fill="#fff" />
-              </div>
-              <span style={{ fontWeight: 700, color: '#993556', fontSize: 16 }}>Tufit Delícias</span>
-            </div>
-          </div>
-          <a
-            href={'https://wa.me/' + whatsapp}
-            target="_blank"
-            rel="noreferrer"
-            style={{ background: '#D4537E', color: '#fff', padding: '10px 20px', borderRadius: 24, fontSize: 14, fontWeight: 500, textDecoration: 'none', display: 'flex', alignItems: 'center', gap: 8 }}
-          >
-            <MessageCircle size={16} />
-            Dúvidas? WhatsApp
-          </a>
-        </div>
-      </nav>
+        {/* Navbar */}
+        <nav className="navbar">
+          <button className="btn-voltar" onClick={() => navigate('/')}>
+            <ChevronLeft size={18} />
+          </button>
+          <span className="navbar-titulo">Cardápio</span>
+          <button className="btn-carrinho" onClick={() => navigate('/checkout')}>
+            <ShoppingBag size={15} />
+            Meu pedido
+            {totalCarrinho > 0 && <span className="badge-qtd">{totalCarrinho}</span>}
+          </button>
+        </nav>
 
-      <section style={{ background: 'linear-gradient(135deg, #FBEAF0 0%, #FDF8F0 100%)', padding: '48px 24px 32px' }}>
-        <div style={{ maxWidth: 1152, margin: '0 auto' }}>
-          <div style={{ textAlign: 'center', marginBottom: 32 }}>
-            <span style={{ color: '#D4537E', fontWeight: 500, fontSize: 13, textTransform: 'uppercase', letterSpacing: 2 }}>Cardápio completo</span>
-            <h1 style={{ fontSize: 40, fontWeight: 800, color: '#2C2C2A', margin: '8px 0' }}>Escolha seus favoritos</h1>
-            <p style={{ color: '#9ca3af', fontSize: 16 }}>Todos feitos com amor, sem açúcar, sem glúten e sem lactose</p>
-          </div>
-
-          <div style={{ display: 'flex', gap: 12, alignItems: 'center', flexWrap: 'wrap', justifyContent: 'center' }}>
-            <div style={{ position: 'relative', flex: 1, minWidth: 280, maxWidth: 400 }}>
-              <Search size={16} style={{ position: 'absolute', left: 14, top: '50%', transform: 'translateY(-50%)', color: '#9ca3af' }} />
-              <input
-                type="text"
-                placeholder="Buscar produto..."
-                value={busca}
-                onChange={e => setBusca(e.target.value)}
-                style={{ width: '100%', padding: '12px 16px 12px 40px', borderRadius: 24, border: '1px solid #fce7f3', background: '#fff', fontSize: 14, outline: 'none', boxSizing: 'border-box' }}
-              />
-            </div>
-          </div>
-
-          <div style={{ display: 'flex', gap: 8, marginTop: 20, justifyContent: 'center', flexWrap: 'wrap' }}>
-            {categorias.map(cat => (
-              <button
-                key={cat.id}
-                onClick={() => setCategoriaSelecionada(cat.id)}
-                style={{
-                  padding: '8px 20px',
-                  borderRadius: 24,
-                  border: '1.5px solid',
-                  borderColor: categoriaSelecionada === cat.id ? '#D4537E' : '#fce7f3',
-                  background: categoriaSelecionada === cat.id ? '#D4537E' : '#fff',
-                  color: categoriaSelecionada === cat.id ? '#fff' : '#6b7280',
-                  fontSize: 14,
-                  fontWeight: 500,
-                  cursor: 'pointer',
-                  transition: 'all 0.2s',
-                }}
-              >
-                {cat.nome}
+        {/* Busca e filtros */}
+        <div className="busca-wrap">
+          <div className="busca-input-wrap">
+            <Search size={16} className="busca-icon" />
+            <input
+              className="busca-input"
+              placeholder="Buscar produto..."
+              value={busca}
+              onChange={e => setBusca(e.target.value)}
+            />
+            {busca && (
+              <button className="busca-limpar" onClick={() => setBusca('')}>
+                <X size={16} />
               </button>
-            ))}
+            )}
           </div>
-        </div>
-      </section>
 
-      <section style={{ padding: isMobile ? '24px 16px 48px' : '40px 24px 80px' }}>
-        <div style={{ maxWidth: 1152, margin: '0 auto' }}>
-          {loading ? (
-            <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : 'repeat(3, 1fr)', gap: 24 }}>
-              {[1,2,3,4,5,6].map(i => (
-                <div key={i} style={{ background: '#fff', borderRadius: 20, padding: 16 }}>
-                  <div style={{ height: 200, background: '#fce7f3', borderRadius: 12, marginBottom: 16 }} />
-                  <div style={{ height: 16, background: '#e5e7eb', borderRadius: 8, marginBottom: 8 }} />
-                  <div style={{ height: 12, background: '#f3f4f6', borderRadius: 8, width: '60%' }} />
-                </div>
+          {categorias.length > 0 && (
+            <div className="categorias-scroll">
+              <button
+                className={`cat-btn ${categoriaAtiva === 'todas' ? 'ativo' : ''}`}
+                onClick={() => setCategoriaAtiva('todas')}
+              >
+                Todos
+              </button>
+              {categorias.map(cat => (
+                <button
+                  key={cat.id}
+                  className={`cat-btn ${categoriaAtiva === cat.id ? 'ativo' : ''}`}
+                  onClick={() => setCategoriaAtiva(cat.id)}
+                >
+                  {cat.nome}
+                </button>
               ))}
-            </div>
-          ) : produtosFiltrados.length > 0 ? (
-            <>
-              <p style={{ color: '#9ca3af', fontSize: 14, marginBottom: 20 }}>
-                {produtosFiltrados.length} produto{produtosFiltrados.length !== 1 ? 's' : ''} encontrado{produtosFiltrados.length !== 1 ? 's' : ''}
-              </p>
-              <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : 'repeat(3, 1fr)', gap: 24 }}>
-                {produtosFiltrados.map(produto => (
-                  <ProdutoCard key={produto.id} produto={produto} onPedir={handlePedir} />
-                ))}
-              </div>
-            </>
-          ) : (
-            <div style={{ textAlign: 'center', padding: '80px 0' }}>
-              <div style={{ fontSize: 64, marginBottom: 16 }}>🔍</div>
-              <h3 style={{ color: '#2C2C2A', fontWeight: 700, marginBottom: 8 }}>Nenhum produto encontrado</h3>
-              <p style={{ color: '#9ca3af' }}>Tente buscar por outro nome ou categoria</p>
-              <button
-                onClick={() => { setBusca(''); setCategoriaSelecionada('todos') }}
-                style={{ marginTop: 16, background: '#D4537E', color: '#fff', padding: '12px 24px', borderRadius: 24, border: 'none', cursor: 'pointer', fontWeight: 500 }}
-              >
-                Limpar filtros
-              </button>
             </div>
           )}
         </div>
-      </section>
 
-      <section style={{ background: '#FBEAF0', padding: '40px 24px', borderTop: '1px solid #fce7f3' }}>
-        <div style={{ maxWidth: 600, margin: '0 auto', textAlign: 'center' }}>
-          <p style={{ fontSize: 16, color: '#993556', fontWeight: 600, marginBottom: 8 }}>Não encontrou o que procura?</p>
-          <p style={{ color: '#6b7280', marginBottom: 20, fontSize: 14 }}>Entre em contato pelo WhatsApp e faça seu pedido personalizado!</p>
-          <a
-            href={'https://wa.me/' + whatsapp + '?text=Olá! Gostaria de fazer um pedido personalizado na Tufit Delícias 🍰'}
-            target="_blank"
-            rel="noreferrer"
-            style={{ background: '#D4537E', color: '#fff', padding: '14px 32px', borderRadius: 32, fontWeight: 600, fontSize: 15, textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: 8 }}
-          >
-            <MessageCircle size={18} />
-            Pedir pelo WhatsApp
-          </a>
-        </div>
-      </section>
+        {/* Produtos */}
+        <div className="produtos-container">
+          {!loading && (
+            <p className="resultados-texto">
+              <strong>{filtrados.length}</strong> {filtrados.length === 1 ? 'produto encontrado' : 'produtos encontrados'}
+              {busca && <> para "<strong>{busca}</strong>"</>}
+            </p>
+          )}
 
-      <footer style={{ background: '#2C2C2A', padding: '32px 24px' }}>
-        <div style={{ maxWidth: 1152, margin: '0 auto', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 16 }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-            <div style={{ width: 24, height: 24, background: '#D4537E', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-              <Heart size={12} color="#fff" fill="#fff" />
+          {loading ? (
+            <div className="produtos-grid">
+              {[1, 2, 3, 4, 5, 6].map(i => (
+                <div key={i} style={{ background: 'white', borderRadius: 20, height: 300, opacity: 0.4 }} />
+              ))}
             </div>
-            <span style={{ color: '#fff', fontWeight: 600 }}>Tufit Delícias</span>
-          </div>
-          <p style={{ color: '#9ca3af', fontSize: 14, margin: 0 }}>Goiânia - GO · Feito com amor 💕</p>
-          <a
-            href="https://instagram.com/tufitdelicias"
-            target="_blank"
-            rel="noreferrer"
-            style={{ color: '#9ca3af', fontSize: 14, textDecoration: 'none', display: 'flex', alignItems: 'center', gap: 6 }}
-          >
-            {iconeInstagram}
-            @tufitdelicias
-          </a>
+          ) : filtrados.length === 0 ? (
+            <div className="vazio">
+              <div className="vazio-emoji">🍰</div>
+              <div className="vazio-titulo">Nenhum produto encontrado</div>
+              <p style={{ fontSize: 14 }}>Tente buscar com outros termos</p>
+            </div>
+          ) : (
+            <div className="produtos-grid">
+              {filtrados.map(p => (
+                <ProdutoCard key={p.id} produto={p} onAdicionar={adicionarItem} />
+              ))}
+            </div>
+          )}
         </div>
-      </footer>
 
-    </div>
+      </div>
+    </>
   )
 }
