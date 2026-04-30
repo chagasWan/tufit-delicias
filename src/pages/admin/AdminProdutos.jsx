@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useIsMobile } from '../../hooks/useIsMobile'
 import { supabase } from '../../lib/supabase'
-import { Plus, Edit2, Trash2, Eye, EyeOff, Star, X, Upload, Clock, BookOpen } from 'lucide-react'
+import { Plus, Edit2, Trash2, Eye, EyeOff, Star, X, Upload, Clock, BookOpen, FileDown } from 'lucide-react'
 import { LabelComDica } from '../../components/Tooltip'
 import { BotaoTabelaNutricional } from '../../components/TabelaNutricional'
 import toast from 'react-hot-toast'
@@ -316,6 +316,138 @@ export default function AdminProdutos() {
 
   useEffect(() => { buscarDados() }, [])
 
+
+  async function gerarCardapioPDF() {
+    const ativos = produtos.filter(p => p.ativo)
+    if (ativos.length === 0) { toast.error('Nenhum produto ativo para exportar'); return }
+
+    toast('Gerando cardápio com fotos, aguarde...', { icon: '⏳' })
+
+    // Converter fotos para base64 para funcionar offline no PDF
+    async function urlParaBase64(url) {
+      if (!url) return null
+      try {
+        const resp = await fetch(url)
+        const blob = await resp.blob()
+        return new Promise(resolve => {
+          const reader = new FileReader()
+          reader.onload = () => resolve(reader.result)
+          reader.onerror = () => resolve(null)
+          reader.readAsDataURL(blob)
+        })
+      } catch { return null }
+    }
+
+    // Baixar todas as fotos em paralelo
+    const fotosBase64 = {}
+    await Promise.all(ativos.map(async p => {
+      if (p.foto_url) {
+        fotosBase64[p.id] = await urlParaBase64(p.foto_url)
+      }
+    }))
+
+    const grupos = {}
+    const semCat = []
+    ativos.forEach(p => {
+      const catNome = p.categoria_id ? nomeDaCategoria(p.categoria_id) : null
+      if (catNome) {
+        if (!grupos[catNome]) grupos[catNome] = []
+        grupos[catNome].push(p)
+      } else {
+        semCat.push(p)
+      }
+    })
+    if (semCat.length > 0) grupos['Outros'] = semCat
+
+    const htmlContent = `<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<title>Cardápio - Tufit Delícias</title>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,600;0,700;1,400;1,600&family=Lato:wght@300;400;700&display=swap" rel="stylesheet">
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  @page { size: A4; margin: 0; }
+  body { font-family: 'Lato', sans-serif; background: #FDF6EE; color: #5C3D2E; width: 210mm; }
+  .faixa-topo { background: #C94F7C; height: 10mm; width: 100%; }
+  .header { padding: 8mm 16mm 5mm; text-align: center; }
+  .logo-nome { font-family: 'Playfair Display', serif; font-size: 34pt; font-weight: 700; font-style: italic; color: #5C3D2E; margin-bottom: 3px; }
+  .logo-sub { font-size: 9pt; color: #C94F7C; font-weight: 700; letter-spacing: 1.5px; text-transform: uppercase; margin-bottom: 6px; }
+  .divisor { border: none; border-top: 1.5px solid #C94F7C; margin: 6px auto; width: 80%; }
+  .tagline { font-size: 8.5pt; color: #7A5C4F; font-style: italic; font-weight: 300; }
+  .conteudo { padding: 4mm 14mm 22mm; }
+  .cat-titulo { font-family: 'Playfair Display', serif; font-size: 14pt; font-style: italic; color: #5C3D2E; margin: 7mm 0 4mm; padding-bottom: 4px; border-bottom: 1.5px solid #C94F7C; }
+  /* Grid de produtos com foto */
+  .produtos-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; }
+  .produto-card { border-radius: 10px; overflow: hidden; border: 1px solid #F5E6D3; background: white; page-break-inside: avoid; }
+  .produto-foto { width: 100%; height: 110px; object-fit: cover; display: block; }
+  .produto-foto-placeholder { width: 100%; height: 110px; background: #FBEAF0; display: flex; align-items: center; justify-content: center; font-size: 36px; }
+  .produto-corpo { padding: 8px 10px 10px; }
+  .produto-topo { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 3px; }
+  .produto-nome { font-family: 'Playfair Display', serif; font-size: 10.5pt; font-weight: 600; color: #5C3D2E; line-height: 1.2; flex: 1; padding-right: 6px; }
+  .produto-preco { font-family: 'Playfair Display', serif; font-size: 12pt; font-weight: 700; color: #C94F7C; white-space: nowrap; }
+  .destaque-badge { display: inline-block; background: #C9913A; color: white; font-size: 6.5pt; font-weight: 700; padding: 1px 6px; border-radius: 8px; margin-bottom: 3px; }
+  .produto-desc { font-size: 7.5pt; color: #7A5C4F; line-height: 1.4; font-weight: 300; margin-bottom: 3px; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+  .produto-tags { font-size: 7pt; color: #C94F7C; font-style: italic; }
+  .produto-kcal { display: inline-block; background: #f0fdf4; color: #4A7C59; font-size: 6.5pt; font-weight: 700; padding: 1px 5px; border-radius: 6px; margin-top: 2px; }
+  .rodape { position: fixed; bottom: 0; width: 100%; }
+  .rodape-faixa { background: #5C3D2E; height: 8mm; display: flex; align-items: center; justify-content: center; }
+  .rodape-texto { color: rgba(255,255,255,0.75); font-size: 7.5pt; }
+  .rodape-texto strong { color: white; }
+  @media print { body { -webkit-print-color-adjust: exact; print-color-adjust: exact; } }
+</style>
+</head>
+<body>
+<div class="faixa-topo"></div>
+<div class="header">
+  <div class="logo-nome">Tufit Delícias</div>
+  <div class="logo-sub">✦ Doces Artesanais Fit ✦</div>
+  <hr class="divisor">
+  <div class="tagline">Sem açúcar refinado &nbsp;•&nbsp; Sem glúten &nbsp;•&nbsp; Sem lactose &nbsp;•&nbsp; Feito com carinho</div>
+</div>
+<div class="conteudo">
+  ${Object.entries(grupos).map(([cat, lista]) => `
+    <div class="cat-titulo">✦ ${cat}</div>
+    <div class="produtos-grid">
+      ${lista.map(p => {
+        const foto = fotosBase64[p.id]
+        const fotoHtml = foto
+          ? `<img class="produto-foto" src="${foto}" alt="${p.nome}" />`
+          : `<div class="produto-foto-placeholder">🍰</div>`
+        return `
+        <div class="produto-card">
+          ${fotoHtml}
+          <div class="produto-corpo">
+            ${p.destaque ? '<span class="destaque-badge">★ Destaque</span>' : ''}
+            <div class="produto-topo">
+              <div class="produto-nome">${p.nome}</div>
+              <div class="produto-preco">R$&nbsp;${p.preco.toFixed(2).replace('.', ',')}</div>
+            </div>
+            ${p.descricao ? `<div class="produto-desc">${p.descricao}</div>` : ''}
+            ${p.ingredientes_destaque && p.ingredientes_destaque.length ? `<div class="produto-tags">🌿 ${p.ingredientes_destaque.join(' • ')}</div>` : ''}
+            ${p.nutricao && p.nutricao.kcal_porcao > 0 ? `<span class="produto-kcal">🥗 ${Math.round(p.nutricao.kcal_porcao)} kcal/porção</span>` : ''}
+          </div>
+        </div>`
+      }).join('')}
+    </div>
+  `).join('')}
+</div>
+<div class="rodape">
+  <div class="rodape-faixa">
+    <span class="rodape-texto"><strong>Tufit Delícias</strong> &nbsp;•&nbsp; Goiânia, GO &nbsp;•&nbsp; Pedidos com antecedência &nbsp;•&nbsp; tufit-delicias.vercel.app</span>
+  </div>
+</div>
+<script>window.onload = function() { setTimeout(function(){ window.print() }, 1200) }</script>
+</body>
+</html>`
+
+    const blob = new Blob([htmlContent], { type: 'text/html;charset=utf-8' })
+    const url = URL.createObjectURL(blob)
+    window.open(url, '_blank')
+    setTimeout(() => URL.revokeObjectURL(url), 10000)
+    toast.success('Cardápio aberto! Use Ctrl+P (ou Cmd+P) e escolha "Salvar como PDF".')
+  }
+
   async function buscarDados() {
     const [{ data: p }, { data: c }, { data: r }] = await Promise.all([
       supabase.from('produtos').select('*').order('created_at', { ascending: false }),
@@ -466,10 +598,16 @@ export default function AdminProdutos() {
           <h1 style={{ fontSize: 24, fontWeight: 800, color: '#2C2C2A', margin: 0 }}>Produtos</h1>
           <p style={{ color: '#9ca3af', fontSize: 14, margin: '4px 0 0' }}>{produtos.length} produtos cadastrados</p>
         </div>
-        <button onClick={() => { setProdutoEditando(null); setModalAberto(true) }}
-          style={{ background: '#D4537E', color: '#fff', padding: '12px 20px', borderRadius: 24, border: 'none', cursor: 'pointer', fontWeight: 600, fontSize: 14, display: 'flex', alignItems: 'center', gap: 8 }}>
-          <Plus size={18} /> Novo produto
-        </button>
+        <div style={{ display: 'flex', gap: 10 }}>
+          <button onClick={gerarCardapioPDF}
+            style={{ background: '#fff', color: '#5C3D2E', padding: '12px 18px', borderRadius: 24, border: '1.5px solid #F5E6D3', cursor: 'pointer', fontWeight: 600, fontSize: 14, display: 'flex', alignItems: 'center', gap: 8 }}>
+            <FileDown size={18} /> Exportar cardápio
+          </button>
+          <button onClick={() => { setProdutoEditando(null); setModalAberto(true) }}
+            style={{ background: '#D4537E', color: '#fff', padding: '12px 20px', borderRadius: 24, border: 'none', cursor: 'pointer', fontWeight: 600, fontSize: 14, display: 'flex', alignItems: 'center', gap: 8 }}>
+            <Plus size={18} /> Novo produto
+          </button>
+        </div>
       </div>
 
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 10, marginBottom: 20 }}>
